@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from '../types';
+import { View, UserRole } from '../types';
 import PokerChipIcon from './icons/PokerChipIcon';
 import UsersIcon from './icons/UsersIcon';
 import TrophyIcon from './icons/TrophyIcon';
@@ -10,14 +10,14 @@ import PokerClubLogo from './PokerClubLogo';
 import LogoutIcon from './icons/LogoutIcon';
 
 interface HeaderProps {
-  isLoggedIn: boolean;
+  userRole: UserRole;
   isVisitor: boolean;
   activeView: View;
   setActiveView: (view: View) => void;
   onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setActiveView, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ userRole, isVisitor, activeView, setActiveView, onLogout }) => {
   const navItems = [
     { view: View.LiveGame, icon: <PokerChipIcon /> },
     { view: View.Players, icon: <UsersIcon /> },
@@ -25,6 +25,9 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setA
     { view: View.Ranking, icon: <TrophyIcon /> },
     { view: View.Cashier, icon: <CashierIcon /> },
   ];
+  
+  const isUserAdmin = userRole === 'owner' || userRole === 'admin';
+  const isLoggedIn = userRole !== 'visitor';
 
   return (
     <header className="bg-poker-light shadow-lg">
@@ -51,7 +54,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setA
                 </button>
               </li>
             ))}
-             {isLoggedIn && (
+             {isUserAdmin && (
               <li>
                 <button
                   onClick={() => setActiveView(View.Settings)}
@@ -68,7 +71,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setA
                <li>
                 <button
                   onClick={onLogout}
-                  title={isLoggedIn ? "Sair da conta de Admin" : "Sair do modo Visitante"}
+                  title={isLoggedIn ? "Sair da conta" : "Sair do modo Visitante"}
                   className="flex items-center px-2 py-2 text-sm md:text-base font-semibold rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
                 >
                   <span className="h-5 w-5"><LogoutIcon /></span>

@@ -23,6 +23,15 @@ export interface Session {
   players: GamePlayer[];
 }
 
+export type UserRole = 'owner' | 'admin' | 'pending' | 'visitor';
+
+export interface AppUser {
+  uid: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
 export enum View {
   LiveGame = 'AO VIVO',
   Players = 'Jogadores',
@@ -31,10 +40,16 @@ export enum View {
   PlayerProfile = 'Perfil do Jogador',
   Cashier = 'Caixa',
   Settings = 'Configurações',
+  Register = 'Registrar',
 }
 
 export interface ToastState {
   message: string;
   type: 'success' | 'error';
   visible: boolean;
+}
+
+export interface GameDefaults {
+  buyIn: number;
+  rebuy: number;
 }

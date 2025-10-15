@@ -8,7 +8,7 @@ import WhatsAppIcon from './icons/WhatsAppIcon';
 import PlayerAvatar from './PlayerAvatar';
 
 interface SessionHistoryProps {
-  isLoggedIn: boolean;
+  isUserAdmin: boolean;
   sessions: Session[];
   players: Player[];
   onIncludeGame: () => void;
@@ -24,7 +24,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-poker-dark p-3 border border-poker-light rounded-md shadow-lg">
         <p className="text-white font-semibold">{label}</p>
-        <p className={`text-sm ${value >= 0 ? 'text-green-400' : 'text-red-400'}`}>Resultado: R$ {value.toLocaleString('pt-BR')}</p>
+        <p className={`text-sm ${value >= 0 ? 'text-green-400' : 'text-red-400'}`}>R$ {value.toLocaleString('pt-BR')}</p>
       </div>
     );
   }
@@ -32,14 +32,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const PaymentToggle: React.FC<{ paid: boolean; onToggle: () => void; disabled: boolean }> = ({ paid, onToggle, disabled }) => (
-  <button onClick={onToggle} disabled={disabled} className={`relative inline-flex items-center h-6 rounded-full w-20 transition-colors focus:outline-none ${disabled ? 'cursor-not-allowed' : ''}`}>
+  <button onClick={onToggle} disabled={disabled} className={`relative inline-flex items-center h-6 rounded-full w-20 ${disabled ? 'cursor-not-allowed' : ''}`}>
     <span className={`absolute left-0 w-1/2 h-full rounded-full transition-transform duration-300 ${paid ? 'transform translate-x-full bg-green-500' : 'bg-poker-gray'}`}></span>
     <span className="relative z-10 w-1/2 text-xs font-bold text-white">{paid ? '' : 'Pendente'}</span>
     <span className="relative z-10 w-1/2 text-xs font-bold text-white">{paid ? 'Pago' : ''}</span>
   </button>
 );
 
-const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, players, onIncludeGame, onEditGame, onDeleteGame, onTogglePayment, onViewProfile }) => {
+const SessionHistory: React.FC<SessionHistoryProps> = ({ isUserAdmin, sessions, players, onIncludeGame, onEditGame, onDeleteGame, onTogglePayment, onViewProfile }) => {
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPlayerId, setFilterPlayerId] = useState('');
@@ -56,12 +56,12 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, p
 
   const handleExportWhatsApp = (session: Session) => {
     const rankedPlayers = [...session.players].map(p => ({ name: p.name.split(' ')[0], profit: p.finalChips - p.totalInvested })).sort((a, b) => b.profit - a.profit);
-    let report = `*📊 Resultado - Poker Club 📊*\n\n*Jogo do dia: ${session.name}*\n\n*Classificação:*\n`;
-    rankedPlayers.forEach((p, index) => {
-      report += `${index + 1}º: ${p.name} (${p.profit >= 0 ? '🟢' : '🔴'} R$ ${p.profit > 0 ? '+' : ''}${p.profit.toLocaleString('pt-BR')})\n`;
+    let report = `*📊 Resultado - Poker Club 📊*\n\n*Jogo: ${session.name}*\n\n*Classificação:*\n`;
+    rankedPlayers.forEach((p, i) => {
+      report += `${i + 1}º: ${p.name} (${p.profit >= 0 ? '🟢' : '🔴'} R$ ${p.profit > 0 ? '+' : ''}${p.profit.toLocaleString('pt-BR')})\n`;
     });
     const totalPot = session.players.reduce((sum, p) => sum + p.totalInvested, 0);
-    report += `\n*💰 Montante Total: R$ ${totalPot.toLocaleString('pt-BR')}*`;
+    report += `\n*💰 Montante: R$ ${totalPot.toLocaleString('pt-BR')}*`;
     window.open(`https://wa.me/?text=${encodeURIComponent(report)}`, '_blank');
   };
 
@@ -69,7 +69,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, p
     return (
       <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-4">Nenhum Histórico</h2>
-        {isLoggedIn && (<button onClick={onIncludeGame} className="mt-6 flex items-center mx-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white shadow-md hover:bg-poker-green/80"><span className="mr-2 h-5 w-5"><PlusIcon /></span>Incluir Jogo Antigo</button>)}
+        {isUserAdmin && (<button onClick={onIncludeGame} className="mt-6 flex items-center mx-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white"><PlusIcon /> Incluir Jogo Antigo</button>)}
       </div>
     );
   }
@@ -78,7 +78,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, p
     <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h2 className="text-xl md:text-2xl font-bold text-white">Histórico de Jogos</h2>
-        {isLoggedIn && <button onClick={onIncludeGame} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white shadow-md hover:bg-poker-green/80"><span className="mr-2 h-5 w-5"><PlusIcon /></span>Incluir Jogo</button>}
+        {isUserAdmin && <button onClick={onIncludeGame} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white"><PlusIcon /> Incluir Jogo</button>}
       </div>
       <div className="flex flex-col sm:flex-row gap-4 mb-4 p-4 bg-poker-dark rounded-lg">
         <input type="text" placeholder="Buscar por data (dd/mm/aa)..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full sm:w-1/2 bg-poker-light border border-poker-gray/20 text-white text-sm rounded-lg p-2" />
@@ -93,8 +93,8 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, p
           return (
             <div key={session.id} className="bg-poker-dark rounded-lg overflow-hidden">
                <div className="w-full flex justify-between items-center p-4">
-                  <button onClick={() => toggleSession(session.id)} className="flex-grow flex items-center text-left" aria-expanded={expandedSessionId === session.id}><span className="text-base sm:text-lg font-semibold text-white">Jogo: {session.name}</span><span className={`ml-3 transform transition-transform ${expandedSessionId === session.id ? 'rotate-180' : ''}`}><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-poker-gray" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></span></button>
-                  {isLoggedIn && <div className="flex items-center space-x-1"><button onClick={(e) => { e.stopPropagation(); onEditGame(session.id); }} className="p-2 text-poker-gray hover:text-white"><EditIcon /></button><button onClick={(e) => { e.stopPropagation(); onDeleteGame(session.id); }} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button></div>}
+                  <button onClick={() => toggleSession(session.id)} className="flex-grow flex items-center text-left"><span className="text-base sm:text-lg font-semibold text-white">Jogo: {session.name}</span><span className={`ml-3 transform transition-transform ${expandedSessionId === session.id ? 'rotate-180' : ''}`}><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-poker-gray" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></span></button>
+                  {isUserAdmin && <div className="flex items-center space-x-1"><button onClick={(e) => { e.stopPropagation(); onEditGame(session.id); }} className="p-2 text-poker-gray hover:text-white"><EditIcon /></button><button onClick={(e) => { e.stopPropagation(); onDeleteGame(session.id); }} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button></div>}
                </div>
               {expandedSessionId === session.id && (
                 <div className="p-4 border-t border-poker-light/50 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -103,16 +103,16 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, p
                       <thead><tr><th className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase">Jogador</th><th className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase">Resultado</th><th className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase">Pago?</th></tr></thead>
                       <tbody className="divide-y divide-poker-light/50">
                         {rankedPlayers.map(player => (
-                            <tr key={player.id}><td className="px-4 py-4 whitespace-nowrap"><div className="flex items-center space-x-3"><PlayerAvatar name={player.name} size="sm" /><button onClick={() => onViewProfile(player.id)} className="text-sm font-medium text-white hover:text-poker-gold">{player.name}</button></div></td><td className={`px-4 py-4 whitespace-nowrap text-sm font-bold ${player.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>R$ {player.profit.toLocaleString('pt-BR')}</td><td className="px-4 py-4 whitespace-nowrap">{player.profit !== 0 && <PaymentToggle paid={!!player.paid} onToggle={() => onTogglePayment(session.id, player.id)} disabled={!isLoggedIn} />}</td></tr>
+                            <tr key={player.id}><td className="px-4 py-4 whitespace-nowrap"><div className="flex items-center space-x-3"><PlayerAvatar name={player.name} size="sm" /><button onClick={() => onViewProfile(player.id)} className="text-sm font-medium text-white hover:text-poker-gold">{player.name}</button></div></td><td className={`px-4 py-4 whitespace-nowrap text-sm font-bold ${player.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>R$ {player.profit.toLocaleString('pt-BR')}</td><td className="px-4 py-4 whitespace-nowrap">{player.profit !== 0 && <PaymentToggle paid={!!player.paid} onToggle={() => onTogglePayment(session.id, player.id)} disabled={!isUserAdmin} />}</td></tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                   <div className="flex flex-col gap-6">
                     <div className="w-full h-80 sm:h-96">
-                       <ResponsiveContainer width="100%" height="100%"><BarChart data={rankedPlayers} margin={{ top: 25, right: 10, left: -25, bottom: 50 }}><CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} /><XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-40} textAnchor="end" /><YAxis stroke="#A0AEC0" fontSize={12} tickFormatter={(value) => `R$${value}`} /><Tooltip content={<CustomTooltip />} /><Bar dataKey="profit"><LabelList dataKey="profit" position="top" formatter={(v: number) => v.toLocaleString('pt-BR')} fontSize={10} className="fill-poker-gray" />{rankedPlayers.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />))}</Bar></BarChart></ResponsiveContainer>
+                       <ResponsiveContainer width="100%" height="100%"><BarChart data={rankedPlayers} margin={{ top: 25, right: 10, left: -25, bottom: 50 }}><CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} /><XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-40} textAnchor="end" /><YAxis stroke="#A0AEC0" fontSize={12} tickFormatter={(v) => `R$${v}`} /><Tooltip content={<CustomTooltip />} /><Bar dataKey="profit"><LabelList dataKey="profit" position="top" formatter={(v: number) => v.toLocaleString('pt-BR')} fontSize={10} className="fill-poker-gray" />{rankedPlayers.map((entry, i) => (<Cell key={`c-${i}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />))}</Bar></BarChart></ResponsiveContainer>
                     </div>
-                    <div className="flex justify-center"><button onClick={() => handleExportWhatsApp(session)} className="flex items-center px-4 py-2 text-sm font-semibold rounded-md bg-green-600 text-white shadow-md hover:bg-green-700"><span className="mr-2 h-5 w-5"><WhatsAppIcon /></span>Exportar via WhatsApp</button></div>
+                    <div className="flex justify-center"><button onClick={() => handleExportWhatsApp(session)} className="flex items-center px-4 py-2 text-sm font-semibold rounded-md bg-green-600 text-white shadow-md hover:bg-green-700"><WhatsAppIcon /> Exportar via WhatsApp</button></div>
                   </div>
                 </div>
               )}
