@@ -3,6 +3,7 @@ import type { Player } from '../types';
 import WhatsAppIcon from './icons/WhatsAppIcon';
 import EditIcon from './icons/EditIcon';
 import TrashIcon from './icons/TrashIcon';
+import { generateAndUploadMockData } from '../mock-data';
 
 interface PlayersProps {
   isLoggedIn: boolean;
@@ -35,6 +36,7 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
   const [pixKey, setPixKey] = useState('');
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [isGeneratingData, setIsGeneratingData] = useState(false);
 
   useEffect(() => {
     if (editingPlayer) {
@@ -102,6 +104,25 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
     }
   };
 
+  const handleGenerateData = async () => {
+    if (isGeneratingData) return;
+
+    const confirmation = window.confirm(
+      "Tem certeza que deseja adicionar 10 jogadores e 36 jogos de teste ao banco de dados? Esta ação não pode ser desfeita e irá adicionar dados à sua base atual."
+    );
+
+    if (confirmation) {
+      setIsGeneratingData(true);
+      const success = await generateAndUploadMockData();
+      if (success) {
+        alert('Dados de teste gerados com sucesso!');
+      } else {
+        alert('Ocorreu um erro ao gerar os dados. Verifique o console para mais detalhes.');
+      }
+      setIsGeneratingData(false);
+    }
+  };
+
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
         if (a.isActive && !b.isActive) return -1;
@@ -150,7 +171,18 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
       <div className={isLoggedIn ? "lg:col-span-2" : "lg:col-span-3"}>
         <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-            <h2 className="text-xl font-bold text-white">Jogadores Cadastrados</h2>
+            <div className="flex items-center space-x-4">
+              <h2 className="text-xl font-bold text-white">Jogadores Cadastrados</h2>
+              {isLoggedIn && (
+                <button
+                  onClick={handleGenerateData}
+                  disabled={isGeneratingData}
+                  className="px-3 py-1 text-xs font-semibold text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-wait"
+                >
+                  {isGeneratingData ? 'Gerando...' : 'Gerar Dados de Teste'}
+                </button>
+              )}
+            </div>
             {isLoggedIn && (
                 <button
                 onClick={handleStartGameClick}
