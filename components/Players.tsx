@@ -4,6 +4,7 @@ import WhatsAppIcon from './icons/WhatsAppIcon';
 import EditIcon from './icons/EditIcon';
 import TrashIcon from './icons/TrashIcon';
 import PlayerAvatar from './PlayerAvatar';
+import PlusIcon from './icons/PlusIcon';
 
 interface PlayersProps {
   isUserAdmin: boolean;
@@ -31,34 +32,92 @@ const StatusToggle: React.FC<{ isActive: boolean; onToggle: () => void; disabled
   );
 };
 
+const PlayerFormModal: React.FC<{
+    player: Player | null;
+    onSave: (playerData: Omit<Player, 'id' | 'isActive'> | Player) => void;
+    onClose: () => void;
+}> = ({ player, onSave, onClose }) => {
+    const [name, setName] = useState('');
+    const [whatsapp, setWhatsapp] = useState('');
+    const [pixKey, setPixKey] = useState('');
+    
+    const isEditing = !!player;
+
+    useEffect(() => {
+        setName(player?.name || '');
+        setWhatsapp(player?.whatsapp || '');
+        setPixKey(player?.pixKey || '');
+    }, [player]);
+
+    const capitalizeName = (nameStr: string): string => nameStr.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => setName(capitalizeName(e.target.value));
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (name.trim()) {
+            if (isEditing) {
+                onSave({ ...player, name, whatsapp, pixKey });
+            } else {
+                onSave({ name, whatsapp, pixKey });
+            }
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-poker-dark flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-white">{isEditing ? 'Editar Jogador' : 'Cadastrar Jogador'}</h3>
+                    <button onClick={onClose} className="text-poker-gray hover:text-white text-3xl">&times;</button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="p-6 space-y-4">
+                        <div>
+                            <label htmlFor="name" className="text-sm font-medium text-poker-gray mb-1 block">Nome</label>
+                            <input type="text" id="name" value={name} onChange={handleNameChange} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5" required autoFocus/>
+                        </div>
+                        <div>
+                            <label htmlFor="whatsapp" className="flex items-center text-sm font-medium text-poker-gray mb-1"><WhatsAppIcon /> <span className="ml-2">WhatsApp</span></label>
+                            <input type="text" id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5" />
+                        </div>
+                        <div>
+                            <label htmlFor="pix" className="text-sm font-medium text-poker-gray mb-1 block">Pix</label>
+                            <input type="text" id="pix" value={pixKey} onChange={(e) => setPixKey(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5" />
+                        </div>
+                    </div>
+                    <div className="p-4 border-t border-poker-dark flex justify-end items-center space-x-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
+                        <button type="submit" className="px-5 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm">{isEditing ? 'Salvar Alterações' : 'Adicionar Jogador'}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+
 const Players: React.FC<PlayersProps> = ({ isUserAdmin, players, onAddPlayer, onUpdatePlayer, onDeletePlayer, onStartGame, onTogglePlayerStatus, onViewProfile }) => {
-  const [name, setName] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [pixKey, setPixKey] = useState('');
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (editingPlayer) {
-      setName(editingPlayer.name);
-      setWhatsapp(editingPlayer.whatsapp);
-      setPixKey(editingPlayer.pixKey);
+  const handleOpenModal = (player: Player | null = null) => {
+    setEditingPlayer(player);
+    setIsModalOpen(true);
+  };
+  
+  const handleCloseModal = () => {
+    setEditingPlayer(null);
+    setIsModalOpen(false);
+  };
+
+  const handleSavePlayer = (playerData: Omit<Player, 'id' | 'isActive'> | Player) => {
+    if ('id' in playerData) {
+      onUpdatePlayer(playerData as Player);
     } else {
-      resetForm();
+      onAddPlayer(playerData as Omit<Player, 'id' | 'isActive'>);
     }
-  }, [editingPlayer]);
-
-  const capitalizeName = (nameStr: string): string => nameStr.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => setName(capitalizeName(e.target.value));
-  const resetForm = () => { setName(''); setWhatsapp(''); setPixKey(''); setEditingPlayer(null); };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) {
-      if (editingPlayer) onUpdatePlayer({ ...editingPlayer, name, whatsapp, pixKey });
-      else onAddPlayer({ name, whatsapp, pixKey });
-      resetForm();
-    }
+    handleCloseModal();
   };
   
   const handlePlayerSelection = (playerId: string) => {
@@ -87,72 +146,55 @@ const Players: React.FC<PlayersProps> = ({ isUserAdmin, players, onAddPlayer, on
   }, [players]);
 
   return (
-    <div className={`grid grid-cols-1 ${isUserAdmin ? 'lg:grid-cols-3' : ''} gap-8`}>
-      {isUserAdmin && (
-        <div className="lg:col-span-1">
-          <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
-            <h2 className="text-xl font-bold text-white mb-4">{editingPlayer ? 'Editar Jogador' : 'Cadastrar Jogador'}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="name" className="text-sm font-medium text-poker-gray mb-1 block">Nome</label>
-                <input type="text" id="name" value={name} onChange={handleNameChange} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5" required />
+    <>
+      <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+            <h2 className="text-xl font-bold text-white">Jogadores Cadastrados</h2>
+            {isUserAdmin && (
+              <div className="flex items-center space-x-2 w-full sm:w-auto">
+                <button onClick={() => handleOpenModal()} className="flex items-center justify-center w-full px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white shadow-md hover:bg-poker-green/80">
+                  <span className="h-5 w-5 mr-2"><PlusIcon/></span>Cadastrar Jogador
+                </button>
+                <button onClick={handleStartGameClick} disabled={selectedPlayers.size < 2} className="px-6 py-2 w-full text-white bg-poker-gold hover:bg-poker-gold/80 disabled:bg-poker-gray/50 font-medium rounded-lg text-sm">Iniciar Jogo</button>
               </div>
-              <div>
-                 <label htmlFor="whatsapp" className="flex items-center text-sm font-medium text-poker-gray mb-1"><WhatsAppIcon /> <span className="ml-2">WhatsApp</span></label>
-                <input type="text" id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5" />
-              </div>
-               <div>
-                <label htmlFor="pix" className="text-sm font-medium text-poker-gray mb-1 block">Pix</label>
-                <input type="text" id="pix" value={pixKey} onChange={(e) => setPixKey(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5" />
-              </div>
-              <div className="flex items-center space-x-2 !mt-6">
-                  <button type="submit" className="w-full text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm px-5 py-2.5">{editingPlayer ? 'Salvar Alterações' : 'Adicionar Jogador'}</button>
-                  {editingPlayer && (<button type="button" onClick={resetForm} className="w-full text-poker-gray bg-poker-dark hover:bg-poker-dark/50 font-medium rounded-lg text-sm px-5 py-2.5">Cancelar</button>)}
-              </div>
-            </form>
-          </div>
+            )}
         </div>
-      )}
-      <div className={isUserAdmin ? "lg:col-span-2" : "lg:col-span-3"}>
-        <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-              <h2 className="text-xl font-bold text-white">Jogadores Cadastrados</h2>
-            {isUserAdmin && (<button onClick={handleStartGameClick} disabled={selectedPlayers.size < 2} className="px-6 py-2 w-full sm:w-auto text-white bg-poker-gold hover:bg-poker-gold/80 disabled:bg-poker-gray/50 font-medium rounded-lg text-sm">Iniciar Jogo</button>)}
-          </div>
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-            {players.length > 0 ? (
-              sortedPlayers.map(player => (
-                <div key={player.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between bg-poker-dark p-3 rounded-lg ${!player.isActive ? 'opacity-50' : ''}`}>
-                  <div className="flex items-center w-full sm:w-auto flex-grow mb-3 sm:mb-0">
-                    {isUserAdmin && (<input id={`cb-${player.id}`} type="checkbox" checked={selectedPlayers.has(player.id)} onChange={() => handlePlayerSelection(player.id)} disabled={!player.isActive} className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded"/>)}
-                    <PlayerAvatar name={player.name} size="md" />
-                    <div className="ml-3 flex flex-col">
-                        <button onClick={() => onViewProfile(player.id)} className="text-base font-semibold text-white text-left hover:text-poker-gold">{player.name}</button>
-                        <div className="flex items-center space-x-2 text-poker-gray text-xs">
-                          {player.whatsapp && <span>{player.whatsapp}</span>}
-                          {player.whatsapp && player.pixKey && <span>|</span>}
-                          {player.pixKey && <span>PIX: {player.pixKey}</span>}
-                        </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 self-end sm:self-center">
-                      <StatusToggle isActive={player.isActive} onToggle={() => onTogglePlayerStatus(player.id)} disabled={!isUserAdmin} />
-                      {isUserAdmin && (
-                        <>
-                            <button onClick={() => setEditingPlayer(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
-                            <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button>
-                        </>
-                      )}
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+          {players.length > 0 ? (
+            sortedPlayers.map(player => (
+              <div key={player.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between bg-poker-dark p-3 rounded-lg ${!player.isActive ? 'opacity-50' : ''}`}>
+                <div className="flex items-center w-full sm:w-auto flex-grow mb-3 sm:mb-0">
+                  {isUserAdmin && (<input id={`cb-${player.id}`} type="checkbox" checked={selectedPlayers.has(player.id)} onChange={() => handlePlayerSelection(player.id)} disabled={!player.isActive} className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded"/>)}
+                  <PlayerAvatar name={player.name} size="md" />
+                  <div className="ml-3 flex flex-col">
+                      <button onClick={() => onViewProfile(player.id)} className="text-base font-semibold text-white text-left hover:text-poker-gold">{player.name}</button>
+                      <div className="flex items-center space-x-2 text-poker-gray text-xs">
+                        {player.whatsapp && <span>{player.whatsapp}</span>}
+                        {player.whatsapp && player.pixKey && <span>|</span>}
+                        {player.pixKey && <span>PIX: {player.pixKey}</span>}
+                      </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <p className="text-center text-poker-gray py-8">Nenhum jogador cadastrado.</p>
-            )}
-          </div>
+                <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 self-end sm:self-center">
+                    <StatusToggle isActive={player.isActive} onToggle={() => onTogglePlayerStatus(player.id)} disabled={!isUserAdmin} />
+                    {isUserAdmin && (
+                      <>
+                          <button onClick={() => handleOpenModal(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
+                          <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button>
+                      </>
+                    )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-poker-gray py-8">Nenhum jogador cadastrado.</p>
+          )}
         </div>
       </div>
-    </div>
+      {isModalOpen && isUserAdmin && (
+        <PlayerFormModal player={editingPlayer} onSave={handleSavePlayer} onClose={handleCloseModal} />
+      )}
+    </>
   );
 };
 
