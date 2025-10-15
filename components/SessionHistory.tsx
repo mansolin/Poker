@@ -65,11 +65,11 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isUserAdmin, sessions, 
     window.open(`https://wa.me/?text=${encodeURIComponent(report)}`, '_blank');
   };
 
-  if (sessions.length === 0) {
+  if (sessions.length === 0 && isUserAdmin) {
     return (
       <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-4">Nenhum Histórico</h2>
-        {isUserAdmin && (<button onClick={onIncludeGame} className="mt-6 flex items-center mx-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white"><PlusIcon /> Incluir Jogo Antigo</button>)}
+        {isUserAdmin && (<button onClick={onIncludeGame} className="mt-6 flex items-center mx-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white"><span className="h-5 w-5 mr-2"><PlusIcon /></span> Incluir Jogo Antigo</button>)}
       </div>
     );
   }
@@ -78,7 +78,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isUserAdmin, sessions, 
     <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h2 className="text-xl md:text-2xl font-bold text-white">Histórico de Jogos</h2>
-        {isUserAdmin && <button onClick={onIncludeGame} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white"><PlusIcon /> Incluir Jogo</button>}
+        {isUserAdmin && <button onClick={onIncludeGame} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white"><span className="h-5 w-5 mr-2"><PlusIcon /></span> Incluir Jogo</button>}
       </div>
       <div className="flex flex-col sm:flex-row gap-4 mb-4 p-4 bg-poker-dark rounded-lg">
         <input type="text" placeholder="Buscar por data (dd/mm/aa)..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full sm:w-1/2 bg-poker-light border border-poker-gray/20 text-white text-sm rounded-lg p-2" />
@@ -88,7 +88,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isUserAdmin, sessions, 
         </select>
       </div>
       <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-        {filteredSessions.map(session => {
+        {filteredSessions.length > 0 ? filteredSessions.map(session => {
           const rankedPlayers = [...session.players].map(p => ({ ...p, profit: p.finalChips - p.totalInvested })).sort((a, b) => b.profit - a.profit);
           return (
             <div key={session.id} className="bg-poker-dark rounded-lg overflow-hidden">
@@ -118,7 +118,9 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isUserAdmin, sessions, 
               )}
             </div>
           );
-        })}
+        }) : (
+          <p className="text-center text-poker-gray py-8">Nenhum jogo encontrado para os filtros selecionados.</p>
+        )}
       </div>
     </div>
   );
