@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export interface Player {
   id: string;
   name: string;
@@ -17,6 +19,7 @@ export interface GamePlayer extends Player {
 export interface Session {
   id: string;
   name: string;
+  date: Timestamp;
   players: GamePlayer[];
 }
 
@@ -25,9 +28,4 @@ export enum View {
   Players = 'Jogadores',
   SessionHistory = 'Histórico',
   Ranking = 'Ranking',
-}
-
-export interface AnnualPerformanceData {
-  month: string;
-  [playerName: string]: string | number;
 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { GamePlayer, Session, Player } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
@@ -35,25 +35,28 @@ const Ranking: React.FC<RankingProps> = ({ gamePlayers, sessionHistory, players,
       .sort((a, b) => b.profit - a.profit);
   }, [gamePlayers]);
 
-  const dateFormat = /^\d{2}\/\d{2}\/\d{2}$/;
-
   const availableYears = useMemo(() => {
     const years = new Set(
-      sessionHistory
-        .filter(s => dateFormat.test(s.name))
-        .map(s => `20${s.name.split('/')[2]}`)
+      sessionHistory.map(s => s.date.toDate().getFullYear().toString())
     );
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
   }, [sessionHistory]);
 
   const [selectedYear, setSelectedYear] = useState<string>(availableYears[0] || new Date().getFullYear().toString());
 
+   useEffect(() => {
+    if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
+      setSelectedYear(availableYears[0]);
+    }
+  }, [availableYears, selectedYear]);
+
+
   const annualRankingData = useMemo(() => {
     const profits = new Map<string, number>();
     const playerNames = new Map<string, string>();
 
     sessionHistory
-      .filter(session => dateFormat.test(session.name) && `20${session.name.split('/')[2]}` === selectedYear)
+      .filter(session => session.date.toDate().getFullYear().toString() === selectedYear)
       .forEach(session => {
         session.players.forEach(p => {
             const currentProfit = profits.get(p.id) || 0;

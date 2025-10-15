@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Player, GamePlayer, Session } from '../types';
+import { Timestamp } from 'firebase/firestore';
 
 interface AddHistoricGameProps {
     players: Player[];
-    onSave: (session: Session) => void;
+    onSave: (session: Omit<Session, 'id'>) => void;
     onClose: () => void;
     sessionToEdit?: Session | null;
 }
@@ -63,7 +64,7 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let value = e.target.value.replace(/\D/g, '');
-      if (value.length > 6) value = value.slice(0, 6);
+      if (value.length > 8) value = value.slice(0, 8);
       if (value.length > 2) value = `${value.slice(0, 2)}/${value.slice(2)}`;
       if (value.length > 5) value = `${value.slice(0, 5)}/${value.slice(5)}`;
       setGameName(value);
@@ -85,10 +86,19 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
     const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => event.target.select();
     
     const handleSave = () => {
-        if (!gameName.trim() || gameName.length < 8) {
-            alert("Por favor, preencha uma data válida no formato DD/MM/AA.");
+        if (!/^\d{2}\/\d{2}\/\d{4}$/.test(gameName)) {
+            alert("Por favor, preencha uma data válida no formato DD/MM/AAAA.");
             return;
         }
+
+        const dateParts = gameName.split('/');
+        const gameDate = new Date(Number(dateParts[2]), Number(dateParts[1]) - 1, Number(dateParts[0]));
+        
+        if (isNaN(gameDate.getTime())) {
+          alert("A data inserida é inválida.");
+          return;
+        }
+
         if (!chipsMatch) {
             alert("O total investido deve ser maior que zero e igual ao total de fichas finais.");
             return;
@@ -104,9 +114,9 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
                 paid: isEditMode ? rest.paid : (rest.finalChips - rest.totalInvested) === 0,
             }));
 
-        const newSession: Session = {
-            id: isEditMode ? sessionToEdit.id : Date.now().toString(),
+        const newSession: Omit<Session, 'id'> = {
             name: gameName,
+            date: Timestamp.fromDate(gameDate),
             players: gamePlayers,
         };
 
@@ -132,7 +142,7 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
                                 value={gameName}
                                 onChange={handleDateChange}
                                 className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5"
-                                placeholder="DD/MM/AA"
+                                placeholder="DD/MM/AAAA"
                                 required
                             />
                         </div>

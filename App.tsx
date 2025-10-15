@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import LiveGame from './components/LiveGame';
 import Players from './components/Players';
@@ -7,26 +7,53 @@ import SessionHistory from './components/SessionHistory';
 import AddHistoricGame from './components/AddHistoricGame';
 import type { Player, GamePlayer, Session } from './types';
 import { View } from './types';
+import { db } from './firebase';
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy } from 'firebase/firestore';
+
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<View>(View.Players);
+  const [activeView, setActiveView] = useState<View>(View.Ranking);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gamePlayers, setGamePlayers] = useState<GamePlayer[]>([]);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [currentGameName, setCurrentGameName] = useState<string | null>(null);
-  
+  const [isLoading, setIsLoading] = useState(true);
+
   const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
 
-  const handleAddPlayer = (player: Omit<Player, 'id' | 'isActive'>) => {
-    setPlayers(prev => [...prev, { ...player, id: Date.now().toString(), isActive: true }]);
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribePlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
+      const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
+      setPlayers(playersData);
+    });
+
+    const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
+    const unsubscribeSessions = onSnapshot(sessionsQuery, (snapshot) => {
+      const sessionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
+      setSessionHistory(sessionsData);
+      setIsLoading(false);
+    });
+
+    return () => {
+      unsubscribePlayers();
+      unsubscribeSessions();
+    };
+  }, []);
+
+
+  const handleAddPlayer = async (player: Omit<Player, 'id' | 'isActive'>) => {
+    await addDoc(collection(db, 'players'), { ...player, isActive: true });
   };
 
-  const handleUpdatePlayer = (updatedPlayer: Player) => {
-    setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
+  const handleUpdatePlayer = async (updatedPlayer: Player) => {
+    const playerRef = doc(db, 'players', updatedPlayer.id);
+    const { id, ...playerData } = updatedPlayer;
+    await updateDoc(playerRef, playerData);
   };
-  
-  const handleDeletePlayer = (playerId: string) => {
+
+  const handleDeletePlayer = async (playerId: string) => {
     const isPlayerInHistory = sessionHistory.some(session =>
       session.players.some(p => p.id === playerId)
     );
@@ -35,19 +62,19 @@ const App: React.FC = () => {
       alert("Este jogador não pode ser excluído pois possui histórico de jogos. Considere marcá-lo como inativo.");
       return;
     }
-    
+
     if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
-      setPlayers(prev => prev.filter(p => p.id !== playerId));
+      await deleteDoc(doc(db, 'players', playerId));
       setGamePlayers(prev => prev.filter(p => p.id !== playerId));
     }
   };
-  
-  const handleTogglePlayerStatus = (playerId: string) => {
-    setPlayers(prev => 
-      prev.map(p => 
-        p.id === playerId ? { ...p, isActive: !p.isActive } : p
-      )
-    );
+
+  const handleTogglePlayerStatus = async (playerId: string) => {
+    const player = players.find(p => p.id === playerId);
+    if (player) {
+      const playerRef = doc(db, 'players', playerId);
+      await updateDoc(playerRef, { isActive: !player.isActive });
+    }
   };
 
   const handleStartGame = (playerIds: string[]) => {
@@ -60,7 +87,7 @@ const App: React.FC = () => {
       finalChips: 0,
       paid: false
     }));
-    
+
     const today = new Date();
     const gameName = today.toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -72,7 +99,7 @@ const App: React.FC = () => {
     setGamePlayers(newGamePlayers);
     setActiveView(View.LiveGame);
   };
-
+  
   const handleAddPlayerToLiveGame = (playerId: string) => {
     const playerToAdd = players.find(p => p.id === playerId);
     if (playerToAdd) {
@@ -87,7 +114,7 @@ const App: React.FC = () => {
         setGamePlayers(prev => [...prev, newGamePlayer]);
     }
   };
-  
+
   const handleAddRebuy = (playerId: string) => {
     setGamePlayers(prev =>
       prev.map(p =>
@@ -127,19 +154,22 @@ const App: React.FC = () => {
     setCurrentGameName(newName);
   };
 
-  const handleEndGame = () => {
+  const handleEndGame = async () => {
     if (!currentGameName) return;
     const gamePlayersWithPayment = gamePlayers.map(p => ({
         ...p,
         paid: (p.finalChips - p.totalInvested) === 0
     }));
 
-    const newSession: Session = {
-      id: Date.now().toString(),
+    const dateParts = currentGameName.split('/');
+    const gameDate = new Date(Number(`20${dateParts[2]}`), Number(dateParts[1]) - 1, Number(dateParts[0]));
+
+    const newSession = {
       name: currentGameName,
+      date: Timestamp.fromDate(gameDate),
       players: gamePlayersWithPayment,
     };
-    setSessionHistory(prev => [newSession, ...prev]);
+    await addDoc(collection(db, 'sessions'), newSession);
     setGamePlayers([]);
     setCurrentGameName(null);
     setActiveView(View.SessionHistory);
@@ -152,12 +182,13 @@ const App: React.FC = () => {
       setActiveView(View.Players);
     }
   };
-  
-  const handleSaveHistoricGame = (session: Session) => {
-    if (modalMode === 'edit') {
-        setSessionHistory(prev => prev.map(s => s.id === session.id ? session : s));
+
+  const handleSaveHistoricGame = async (session: Omit<Session, 'id'>) => {
+    if (modalMode === 'edit' && sessionToEdit) {
+        const sessionRef = doc(db, 'sessions', sessionToEdit.id);
+        await updateDoc(sessionRef, session);
     } else {
-        setSessionHistory(prev => [session, ...prev]);
+        await addDoc(collection(db, 'sessions'), session);
     }
     setModalMode(null);
     setSessionToEdit(null);
@@ -171,30 +202,36 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteSession = (sessionId: string) => {
+  const handleDeleteSession = async (sessionId: string) => {
     if (window.confirm("Tem certeza que deseja excluir este jogo do histórico? Esta ação não pode ser desfeita.")) {
-      setSessionHistory(prev => prev.filter(s => s.id !== sessionId));
+      await deleteDoc(doc(db, 'sessions', sessionId));
+    }
+  };
+
+  const handleTogglePaymentStatus = async (sessionId: string, playerId: string) => {
+    const session = sessionHistory.find(s => s.id === sessionId);
+    if (session) {
+        const updatedPlayers = session.players.map(player => {
+            if (player.id === playerId) {
+                return { ...player, paid: !player.paid };
+            }
+            return player;
+        });
+        const sessionRef = doc(db, 'sessions', sessionId);
+        await updateDoc(sessionRef, { players: updatedPlayers });
     }
   };
   
-  const handleTogglePaymentStatus = (sessionId: string, playerId: string) => {
-    setSessionHistory(prev => prev.map(session => {
-        if (session.id === sessionId) {
-            return {
-                ...session,
-                players: session.players.map(player => {
-                    if (player.id === playerId) {
-                        return { ...player, paid: !player.paid };
-                    }
-                    return player;
-                })
-            };
-        }
-        return session;
-    }));
-  };
-
-  const renderContent = () => {
+    const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-poker-gold"></div>
+          <p className="ml-4 text-white text-lg">Carregando dados...</p>
+        </div>
+      );
+    }
+    
     switch (activeView) {
       case View.LiveGame:
         return (

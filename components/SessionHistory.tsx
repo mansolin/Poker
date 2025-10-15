@@ -52,28 +52,6 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onIncludeGame
     setExpandedSessionId(prevId => (prevId === sessionId ? null : sessionId));
   };
 
-  const sortedSessions = useMemo(() => {
-    const parseDate = (dateStr: string): Date | null => {
-        if (!/^\d{2}\/\d{2}\/\d{2}$/.test(dateStr)) return null;
-        const parts = dateStr.split('/');
-        // Format is DD/MM/YY -> new Date(YYYY, MM-1, DD)
-        const date = new Date(Number(`20${parts[2]}`), Number(parts[1]) - 1, Number(parts[0]));
-        return isNaN(date.getTime()) ? null : date;
-    };
-
-    return [...sessions].sort((a, b) => {
-        const dateA = parseDate(a.name);
-        const dateB = parseDate(b.name);
-
-        if (dateA && dateB) {
-            return dateB.getTime() - dateA.getTime();
-        }
-        if (dateA) return -1; // Keep valid dates at the beginning
-        if (dateB) return 1;  // Put invalid dates at the end
-        return a.name.localeCompare(b.name); // Sort non-dates alphabetically
-    });
-  }, [sessions]);
-
   const handleExportWhatsApp = (session: Session) => {
     const rankedPlayers = [...session.players]
       .map(p => ({
@@ -104,7 +82,14 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onIncludeGame
     return (
       <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-4">Nenhum Histórico de Sessões</h2>
-        <p className="text-poker-gray">Nenhuma sessão de jogo foi concluída ainda.</p>
+        <p className="text-poker-gray">Nenhuma sessão de jogo foi concluída ainda. Adicione jogos antigos ou encerre um jogo ao vivo.</p>
+         <button
+          onClick={onIncludeGame}
+          className="mt-6 flex items-center mx-auto px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-green text-white shadow-md hover:bg-poker-green/80"
+        >
+          <span className="mr-2 h-5 w-5"><PlusIcon /></span>
+          Incluir Jogo Antigo
+        </button>
       </div>
     );
   }
@@ -122,7 +107,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onIncludeGame
         </button>
       </div>
       <div className="space-y-4">
-        {sortedSessions.map(session => {
+        {sessions.map(session => {
           const rankedPlayers = [...session.players]
               .map(p => ({
                 ...p,
