@@ -25,25 +25,26 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setA
 
   return (
     <header className="bg-poker-light shadow-lg">
-      <div className="container mx-auto px-4 md:px-8 py-2 flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <PokerClubLogo />
-          <span className="text-poker-gray text-sm italic">by Mansolin</span>
+      <div className="container mx-auto px-2 sm:px-4 md:px-8 py-2 flex justify-between items-center">
+        <div className="flex items-center space-x-2 sm:space-x-4">
+          <PokerClubLogo className="scale-75 sm:scale-100"/>
+          <span className="hidden sm:inline text-poker-gray text-sm italic">by Mansolin</span>
         </div>
         <nav>
-          <ul className="flex items-center space-x-2 md:space-x-4">
+          <ul className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
             {navItems.map(item => (
               <li key={item.view}>
                 <button
                   onClick={() => setActiveView(item.view)}
-                  className={`flex items-center px-3 py-2 md:px-4 md:py-2 text-sm md:text-base font-semibold rounded-md transition-all duration-300 ${
+                  className={`flex items-center px-2 py-2 sm:px-3 md:px-4 text-sm md:text-base font-semibold rounded-md transition-all duration-300 ${
                     activeView === item.view
                       ? 'bg-poker-green text-white shadow-md'
                       : 'bg-transparent text-poker-gray hover:bg-poker-dark hover:text-white'
                   }`}
+                  title={item.view}
                 >
-                  <span className="mr-2 h-5 w-5">{item.icon}</span>
-                  {item.view}
+                  <span className="h-5 w-5">{item.icon}</span>
+                  <span className="hidden md:inline ml-2">{item.view}</span>
                 </button>
               </li>
             ))}
@@ -52,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setA
                 <button
                   onClick={onLogout}
                   title={isLoggedIn ? "Sair da conta de Admin" : "Sair do modo Visitante"}
-                  className="flex items-center px-3 py-2 md:px-4 md:py-2 text-sm md:text-base font-semibold rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
+                  className="flex items-center px-2 py-2 sm:px-3 md:px-4 text-sm md:text-base font-semibold rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
                 >
                   <span className="h-5 w-5"><LogoutIcon /></span>
                 </button>

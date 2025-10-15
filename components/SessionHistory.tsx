@@ -99,13 +99,13 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, o
   }
 
   return (
-    <div className="bg-poker-light p-6 rounded-lg shadow-xl">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-white">Histórico de Jogos</h2>
+    <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h2 className="text-xl md:text-2xl font-bold text-white">Histórico de Jogos</h2>
         {isLoggedIn && (
             <button
                 onClick={onIncludeGame}
-                className="flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-green text-white shadow-md hover:bg-poker-green/80"
+                className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-green text-white shadow-md hover:bg-poker-green/80"
             >
                 <span className="mr-2 h-5 w-5"><PlusIcon /></span>
                 Incluir Jogo
@@ -129,9 +129,9 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, o
                     className="flex-grow flex items-center text-left hover:opacity-80 focus:outline-none"
                     aria-expanded={expandedSessionId === session.id}
                   >
-                    <span className="text-lg font-semibold text-white">Jogo: {session.name}</span>
+                    <span className="text-base sm:text-lg font-semibold text-white">Jogo: {session.name}</span>
                     <span className={`ml-3 transform transition-transform duration-300 ${expandedSessionId === session.id ? 'rotate-180' : ''}`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-poker-gray" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-poker-gray" fill="none" viewBox="0 0 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </span>
@@ -155,8 +155,8 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, o
                       <thead className="bg-poker-light/20">
                         <tr>
                           <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Jogador</th>
-                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Fichas Finais</th>
-                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Resultado (R$)</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Fichas</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Resultado</th>
                           <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Pago?</th>
                         </tr>
                       </thead>
@@ -184,46 +184,48 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, o
                     </table>
                   </div>
 
-                  {/* Coluna Direita: Gráfico */}
-                  <div className="w-full h-96">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={rankedPlayers} margin={{ top: 25, right: 20, left: -20, bottom: 70 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
-                          <XAxis 
-                            dataKey="name" 
-                            stroke="#A0AEC0" 
-                            fontSize={12} 
-                            tickLine={false} 
-                            axisLine={false}
-                            interval={0}
-                            angle={-45}
-                            textAnchor="end"
-                           />
-                          <YAxis stroke="#A0AEC0" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value.toLocaleString('pt-BR')}`} />
-                          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(113, 128, 150, 0.1)' }} />
-                          <Bar dataKey="profit" name="Resultado">
-                            <LabelList 
-                              dataKey="profit" 
-                              position="top" 
-                              formatter={(value: number) => value.toLocaleString('pt-BR')}
-                              fontSize={12}
-                              className="fill-poker-gray"
-                            />
-                            {rankedPlayers.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                       <div className="mt-6 flex justify-center">
-                          <button
-                            onClick={() => handleExportWhatsApp(session)}
-                            className="flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-green-600 text-white shadow-md hover:bg-green-700"
-                          >
-                            <span className="mr-2 h-5 w-5"><WhatsAppIcon /></span>
-                            Exportar via WhatsApp
-                          </button>
-                        </div>
+                  {/* Coluna Direita: Gráfico e botão */}
+                  <div className="flex flex-col gap-6">
+                    <div className="w-full h-80 sm:h-96">
+                       <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={rankedPlayers} margin={{ top: 25, right: 10, left: -25, bottom: 50 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#A0AEC0" 
+                              fontSize={10} 
+                              tickLine={false} 
+                              axisLine={false}
+                              interval={0}
+                              angle={-40}
+                              textAnchor="end"
+                             />
+                            <YAxis stroke="#A0AEC0" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(113, 128, 150, 0.1)' }} />
+                            <Bar dataKey="profit" name="Resultado">
+                              <LabelList 
+                                dataKey="profit" 
+                                position="top" 
+                                formatter={(value: number) => value.toLocaleString('pt-BR')}
+                                fontSize={10}
+                                className="fill-poker-gray"
+                              />
+                              {rankedPlayers.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                     <div className="flex justify-center">
+                        <button
+                          onClick={() => handleExportWhatsApp(session)}
+                          className="flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-green-600 text-white shadow-md hover:bg-green-700"
+                        >
+                          <span className="mr-2 h-5 w-5"><WhatsAppIcon /></span>
+                          Exportar via WhatsApp
+                        </button>
+                      </div>
                   </div>
                 </div>
               )}

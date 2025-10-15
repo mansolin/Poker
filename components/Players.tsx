@@ -114,24 +114,24 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
     <div className={`grid grid-cols-1 ${isLoggedIn ? 'lg:grid-cols-3' : ''} gap-8`}>
       {isLoggedIn && (
         <div className="lg:col-span-1">
-          <div className="bg-poker-light p-6 rounded-lg shadow-xl">
+          <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
             <h2 className="text-xl font-bold text-white mb-4">
               {editingPlayer ? 'Editar Jogador' : 'Cadastrar Jogador'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-4 items-center gap-3">
-                <label htmlFor="name" className="text-sm font-medium text-poker-gray text-right col-span-1">Nome</label>
-                <input type="text" id="name" value={name} onChange={handleNameChange} className="col-span-3 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5" placeholder="Nome do Jogador" required />
+              <div>
+                <label htmlFor="name" className="text-sm font-medium text-poker-gray mb-1 block">Nome</label>
+                <input type="text" id="name" value={name} onChange={handleNameChange} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5" placeholder="Nome do Jogador" required />
               </div>
-              <div className="grid grid-cols-4 items-center gap-3">
-                 <label htmlFor="whatsapp" className="flex justify-end col-span-1" aria-label="WhatsApp">
-                  <WhatsAppIcon />
+              <div>
+                 <label htmlFor="whatsapp" className="flex items-center text-sm font-medium text-poker-gray mb-1">
+                  <WhatsAppIcon /> <span className="ml-2">WhatsApp</span>
                 </label>
-                <input type="text" id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className="col-span-3 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5" placeholder="(99) 99999-9999" />
+                <input type="text" id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5" placeholder="(99) 99999-9999" />
               </div>
-               <div className="grid grid-cols-4 items-center gap-3">
-                <label htmlFor="pix" className="text-sm font-medium text-poker-gray text-right col-span-1">Pix</label>
-                <input type="text" id="pix" value={pixKey} onChange={(e) => setPixKey(e.target.value)} className="col-span-3 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5" placeholder="Chave PIX" />
+               <div>
+                <label htmlFor="pix" className="text-sm font-medium text-poker-gray mb-1 block">Pix</label>
+                <input type="text" id="pix" value={pixKey} onChange={(e) => setPixKey(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5" placeholder="Chave PIX" />
               </div>
               <div className="flex items-center space-x-2 !mt-6">
                   <button type="submit" className="w-full text-white bg-poker-green hover:bg-poker-green/80 focus:ring-4 focus:outline-none focus:ring-poker-green/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-all duration-300">
@@ -148,14 +148,14 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
         </div>
       )}
       <div className={isLoggedIn ? "lg:col-span-2" : "lg:col-span-3"}>
-        <div className="bg-poker-light p-6 rounded-lg shadow-xl">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
             <h2 className="text-xl font-bold text-white">Jogadores Cadastrados</h2>
             {isLoggedIn && (
                 <button
                 onClick={handleStartGameClick}
                 disabled={selectedPlayers.size < 2}
-                className="px-6 py-2 text-white bg-poker-gold hover:bg-poker-gold/80 disabled:bg-poker-gray/50 disabled:cursor-not-allowed font-medium rounded-lg text-sm transition-all duration-300"
+                className="px-6 py-2 w-full sm:w-auto text-white bg-poker-gold hover:bg-poker-gold/80 disabled:bg-poker-gray/50 disabled:cursor-not-allowed font-medium rounded-lg text-sm transition-all duration-300"
                 >
                 Iniciar Jogo
                 </button>
@@ -164,8 +164,8 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
             {players.length > 0 ? (
               sortedPlayers.map(player => (
-                <div key={player.id} className={`flex items-center justify-between bg-poker-dark p-4 rounded-lg transition-opacity duration-300 ${!player.isActive ? 'opacity-50' : ''}`}>
-                  <div className="flex items-center flex-grow">
+                <div key={player.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between bg-poker-dark p-3 rounded-lg transition-opacity duration-300 ${!player.isActive ? 'opacity-50' : ''}`}>
+                  <div className="flex items-center w-full sm:w-auto flex-grow mb-3 sm:mb-0">
                     {isLoggedIn && (
                         <input
                         id={`checkbox-${player.id}`}
@@ -176,23 +176,16 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
                         className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded focus:ring-poker-green focus:ring-2 flex-shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                         />
                     )}
-                    <label htmlFor={`checkbox-${player.id}`} className={`${isLoggedIn ? 'ml-4' : 'ml-0'} flex items-center space-x-3 text-sm flex-wrap flex-grow`}>
+                    <label htmlFor={`checkbox-${player.id}`} className={`${isLoggedIn ? 'ml-3' : 'ml-0'} flex flex-col sm:flex-row sm:items-center sm:space-x-3 text-sm flex-wrap flex-grow`}>
                       <span className="text-base font-semibold text-white">{player.name}</span>
-                      {player.whatsapp && (
-                        <>
-                          <span className="text-poker-gray/50">|</span>
-                          <span className="text-poker-gray">{player.whatsapp}</span>
-                        </>
-                      )}
-                      {player.pixKey && (
-                        <>
-                          <span className="text-poker-gray/50">|</span>
-                          <span className="text-poker-gray"><span className="font-semibold text-poker-gray/80">PIX:</span> {player.pixKey}</span>
-                        </>
-                      )}
+                      <div className="flex items-center space-x-2 text-poker-gray text-xs sm:text-sm mt-1 sm:mt-0">
+                          {player.whatsapp && <span>{player.whatsapp}</span>}
+                          {player.whatsapp && player.pixKey && <span className="text-poker-gray/50">|</span>}
+                          {player.pixKey && <span>PIX: {player.pixKey}</span>}
+                      </div>
                     </label>
                   </div>
-                  <div className="flex items-center space-x-3 flex-shrink-0">
+                  <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 self-end sm:self-center">
                       <StatusToggle isActive={player.isActive} onToggle={() => onTogglePlayerStatus(player.id)} disabled={!isLoggedIn} />
                       {isLoggedIn && (
                         <>

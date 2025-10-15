@@ -75,7 +75,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
 
   return (
     <div className="space-y-6">
-       <div className="flex justify-between items-center bg-poker-light p-4 rounded-lg shadow-xl">
+       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-poker-light p-4 rounded-lg shadow-xl gap-4">
           {isEditingName && isLoggedIn ? (
             <div className="flex items-center gap-2 w-full">
                 <input 
@@ -90,7 +90,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
             </div>
           ) : (
             <div className="flex items-center space-x-3">
-                <h2 className="text-2xl font-bold text-white">Jogo: <span className="text-poker-gold">{gameName}</span></h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-white">Jogo: <span className="text-poker-gold">{gameName}</span></h2>
                 {isLoggedIn && (
                     <button onClick={() => setIsEditingName(true)} className="text-poker-gray hover:text-poker-gold transition-colors duration-200">
                         <EditIcon />
@@ -101,7 +101,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
           {isLoggedIn && (
             <button
               onClick={() => setIsAddPlayerModalOpen(true)}
-              className="flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-dark text-white shadow-md hover:bg-poker-dark/80 ml-4"
+              className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-dark text-white shadow-md hover:bg-poker-dark/80"
             >
               <span className="mr-2 h-5 w-5"><PlusIcon /></span>
               Incluir Jogador
@@ -110,17 +110,17 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-poker-light p-6 rounded-lg shadow-xl text-center">
-          <h3 className="text-lg font-semibold text-poker-gray uppercase tracking-wider">Montante Total (R$)</h3>
-          <p className="text-4xl font-bold text-poker-gold">R$ {totalCash.toLocaleString('pt-BR')}</p>
+        <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center">
+          <h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase tracking-wider">Montante Total (R$)</h3>
+          <p className="text-3xl md:text-4xl font-bold text-poker-gold">R$ {totalCash.toLocaleString('pt-BR')}</p>
         </div>
-        <div className="bg-poker-light p-6 rounded-lg shadow-xl text-center">
-          <h3 className="text-lg font-semibold text-poker-gray uppercase tracking-wider">Total em Fichas</h3>
-          <p className="text-4xl font-bold text-white">{totalChips.toLocaleString('pt-BR')}</p>
+        <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center">
+          <h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase tracking-wider">Total em Fichas</h3>
+          <p className="text-3xl md:text-4xl font-bold text-white">{totalChips.toLocaleString('pt-BR')}</p>
         </div>
-         <div className={`bg-poker-light p-6 rounded-lg shadow-xl text-center border-2 ${chipsMatch ? 'border-transparent' : 'border-red-500'}`}>
-          <h3 className="text-lg font-semibold text-poker-gray uppercase tracking-wider">Fichas Distribuídas</h3>
-          <p className={`text-4xl font-bold ${chipsMatch ? 'text-white' : 'text-red-500'}`}>{distributedChips.toLocaleString('pt-BR')}</p>
+         <div className={`bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center border-2 ${chipsMatch ? 'border-transparent' : 'border-red-500'}`}>
+          <h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase tracking-wider">Fichas Distribuídas</h3>
+          <p className={`text-3xl md:text-4xl font-bold ${chipsMatch ? 'text-white' : 'text-red-500'}`}>{distributedChips.toLocaleString('pt-BR')}</p>
           {!chipsMatch && (
             <div className="mt-1">
               <p className="text-xs text-red-400">O total deve ser {totalChips.toLocaleString('pt-BR')}</p>
@@ -135,11 +135,11 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
             <table className="min-w-full divide-y divide-poker-dark">
             <thead className="bg-poker-dark">
                 <tr>
-                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Nome</th>
-                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Rebuys</th>
-                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Total Investido (R$)</th>
-                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Saldo Final (Fichas)</th>
-                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Saldo Real (R$)</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Nome</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Rebuys</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Investido (R$)</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Fichas Finais</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase tracking-wider">Resultado (R$)</th>
                 </tr>
             </thead>
             <tbody className="bg-poker-light divide-y divide-poker-dark">
@@ -148,13 +148,13 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
                   const profitColor = profit >= 0 ? 'text-green-400' : 'text-red-400';
                   return (
                     <tr key={player.id} className="hover:bg-poker-dark/50 transition-colors duration-200">
-                        <td className="px-6 py-3 whitespace-nowrap text-base font-medium text-white">{player.name}</td>
-                        <td className="px-6 py-3 whitespace-nowrap text-sm text-poker-gray">
-                          <div className="flex items-center space-x-3">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{player.name}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-poker-gray">
+                          <div className="flex items-center space-x-2">
                             <button
                               onClick={() => onRemoveRebuy(player.id)}
                               disabled={player.rebuys === 0 || !isLoggedIn}
-                              className="bg-red-600 hover:bg-red-700 text-white font-bold h-7 w-7 rounded-full flex items-center justify-center text-lg transition-all duration-200 disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
+                              className="bg-red-600 hover:bg-red-700 text-white font-bold h-6 w-6 rounded-full flex items-center justify-center text-lg transition-all duration-200 disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
                               aria-label="Remover rebuy"
                             >
                               -
@@ -163,15 +163,15 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
                             <button
                               onClick={() => onAddRebuy(player.id)}
                               disabled={!isLoggedIn}
-                              className="bg-poker-green hover:bg-poker-green/80 text-white font-bold h-7 w-7 rounded-full flex items-center justify-center text-lg transition-all duration-200 disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
+                              className="bg-poker-green hover:bg-poker-green/80 text-white font-bold h-6 w-6 rounded-full flex items-center justify-center text-lg transition-all duration-200 disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
                               aria-label="Adicionar rebuy"
                             >
                               +
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-base font-bold text-poker-gold">R$ {player.totalInvested.toLocaleString('pt-BR')}</td>
-                        <td className="px-6 py-3 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-poker-gold">R$ {player.totalInvested.toLocaleString('pt-BR')}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
                         <input
                             type="number"
                             min="0"
@@ -179,11 +179,11 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
                             disabled={!isLoggedIn}
                             onChange={(e) => onUpdateFinalChips(player.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
                             onFocus={handleFocus}
-                            className="w-28 bg-poker-dark border border-poker-gray/20 text-white text-base rounded-lg focus:ring-poker-gold focus:border-poker-gold block p-2.5 disabled:bg-poker-dark/50 disabled:cursor-not-allowed"
+                            className="w-24 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed"
                             placeholder="0"
                         />
                         </td>
-                        <td className={`px-6 py-3 whitespace-nowrap text-base font-bold ${profitColor}`}>
+                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-bold ${profitColor}`}>
                           R$ {profit.toLocaleString('pt-BR')}
                         </td>
                     </tr>
@@ -194,18 +194,18 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
         </div>
       </div>
       {isLoggedIn && (
-        <div className="flex justify-between items-center">
-            <div className="text-left">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-left w-full sm:w-auto">
                 {!chipsMatch && totalChips > 0 && (
                     <p className="text-sm text-yellow-400 animate-pulse">
                         Diferença de R$ {(totalChips - distributedChips).toLocaleString('pt-BR')}. Os totais de fichas devem ser iguais.
                     </p>
                 )}
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 w-full sm:w-auto">
                 <button
                 onClick={onCancelGame}
-                className="px-6 py-3 text-poker-gray bg-poker-dark hover:bg-poker-dark/50 font-medium rounded-lg text-sm transition-all duration-300"
+                className="w-full sm:w-auto px-4 py-2 text-poker-gray bg-poker-dark hover:bg-poker-dark/50 font-medium rounded-lg text-sm transition-all duration-300"
                 >
                 Cancelar Jogo
                 </button>
@@ -213,9 +213,9 @@ const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, ga
                 onClick={onEndGame}
                 disabled={!chipsMatch}
                 title={!chipsMatch ? "O total de fichas distribuídas deve ser igual ao montante total em dinheiro" : "Salvar esta sessão no histórico"}
-                className="px-6 py-3 text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm transition-all duration-300 shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm transition-all duration-300 shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
                 >
-                Encerrar e Salvar Jogo
+                Encerrar e Salvar
                 </button>
             </div>
         </div>
