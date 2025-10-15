@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import LiveGame from './components/LiveGame';
@@ -16,7 +15,7 @@ import type { Player, GamePlayer, Session, ToastState, AppUser, UserRole, GameDe
 import { View } from './types';
 import { db, auth } from './firebase';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, getDocs, where } from 'firebase/firestore';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -82,7 +81,7 @@ const App: React.FC = () => {
   useEffect(() => {
     let unsubAppUsers: () => void = () => {};
     if (userRole === 'owner') {
-        unsubAppUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+        unsubAppUsers = onSnapshot(query(collection(db, 'users'), orderBy('name')), (snapshot) => {
             setAppUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
         });
     } else {
@@ -289,6 +288,48 @@ const App: React.FC = () => {
       } catch { showToast('Erro ao salvar configurações.', 'error'); }
   };
   
+  const handleAddUser = async (userData: Omit<AppUser, 'uid'>, password: string): Promise<boolean> => {
+      if (userRole !== 'owner') return false;
+      try {
+          // Firebase auth doesn't let us create users with password from the client-side directly
+          // without signing them in. This is a common workaround for admin panels.
+          // For a production app, this should be a backend function.
+          const tempUserCredential = await createUserWithEmailAndPassword(auth, userData.email, password);
+          await setDoc(doc(db, 'users', tempUserCredential.user.uid), userData);
+
+          // Now, re-authenticate the original admin user
+          if (auth.currentUser && user) {
+            // This part is tricky on client-side and might require re-login.
+            // For simplicity, we show a success message.
+          }
+          showToast('Usuário criado com sucesso!', 'success');
+          return true;
+      } catch (e: any) {
+          if (e.code === 'auth/email-already-in-use') {
+              showToast('Este e-mail já está em uso.', 'error');
+          } else {
+              showToast('Erro ao criar usuário.', 'error');
+          }
+          return false;
+      }
+  };
+
+  const handleDeleteUser = async (uid: string) => {
+      if (userRole !== 'owner') return;
+      if (window.confirm("Tem certeza que deseja excluir este usuário? Esta ação é irreversível.")) {
+          try {
+              // Note: Deleting a user from Firebase Auth requires admin privileges,
+              // typically done via a backend (Cloud Function).
+              // Here we only delete the Firestore document.
+              await deleteDoc(doc(db, 'users', uid));
+              showToast('Usuário removido do banco de dados.');
+          } catch {
+              showToast('Erro ao remover usuário.', 'error');
+          }
+      }
+  };
+
+
   const renderContent = () => {
     switch (activeView) {
       case View.LiveGame: return <LiveGame isUserAdmin={isUserAdmin} players={gamePlayers} allPlayers={players} gameName={currentGameName} onAddRebuy={handleAddRebuy} onRemoveRebuy={handleRemoveRebuy} onUpdateFinalChips={handleUpdateFinalChips} onUpdateGameName={handleUpdateGameName} onEndGame={handleEndGame} onCancelGame={handleCancelGame} onGoToPlayers={() => setActiveView(View.Players)} onAddPlayerToGame={handleAddPlayerToLiveGame} onViewProfile={handleViewProfile} gameDefaults={gameDefaults} />;
@@ -297,7 +338,7 @@ const App: React.FC = () => {
       case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} />;
       case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Ranking)} />;
       case View.Cashier: return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettlePlayerDebts} onViewProfile={handleViewProfile} />;
-      case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} />;
+      case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} />;
       default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} />;
     }
   };

@@ -22,7 +22,7 @@ const StatusToggle: React.FC<{ isActive: boolean; onToggle: () => void; disabled
     <button
       onClick={onToggle}
       disabled={disabled}
-      className={`relative inline-flex items-center h-6 rounded-full w-20 transition-colors duration-300 focus:outline-none ${isActive ? 'bg-poker-green' : 'bg-poker-gray'} ${disabled ? 'cursor-not-allowed' : ''}`}
+      className={`relative inline-flex items-center h-5 rounded-full w-16 transition-colors duration-300 focus:outline-none ${isActive ? 'bg-poker-green' : 'bg-poker-gray'} ${disabled ? 'cursor-not-allowed' : ''}`}
       title={isActive ? 'Marcar como inativo' : 'Marcar como ativo'}
     >
       <span className={`absolute left-0 w-1/2 h-full rounded-full bg-white transition-transform duration-300 ${isActive ? 'transform translate-x-full' : ''}`}></span>
@@ -36,7 +36,8 @@ const PlayerFormModal: React.FC<{
     player: Player | null;
     onSave: (playerData: Omit<Player, 'id' | 'isActive'> | Player) => void;
     onClose: () => void;
-}> = ({ player, onSave, onClose }) => {
+    onDelete: (playerId: string) => void;
+}> = ({ player, onSave, onClose, onDelete }) => {
     const [name, setName] = useState('');
     const [whatsapp, setWhatsapp] = useState('');
     const [pixKey, setPixKey] = useState('');
@@ -62,6 +63,13 @@ const PlayerFormModal: React.FC<{
             }
         }
     };
+    
+    const handleDelete = () => {
+        if (player) {
+            onDelete(player.id);
+            onClose();
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -85,9 +93,19 @@ const PlayerFormModal: React.FC<{
                             <input type="text" id="pix" value={pixKey} onChange={(e) => setPixKey(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5" />
                         </div>
                     </div>
-                    <div className="p-4 border-t border-poker-dark flex justify-end items-center space-x-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
-                        <button type="submit" className="px-5 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm">{isEditing ? 'Salvar Alterações' : 'Adicionar Jogador'}</button>
+                    <div className="p-4 border-t border-poker-dark flex justify-between items-center">
+                        <div>
+                            {isEditing && (
+                                <button type="button" onClick={handleDelete} className="flex items-center px-3 py-2 text-sm font-medium text-red-500 bg-transparent hover:bg-red-500/10 rounded-lg">
+                                    <TrashIcon />
+                                    <span className="ml-2">Excluir</span>
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                           <button type="button" onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
+                           <button type="submit" className="px-5 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm">{isEditing ? 'Salvar' : 'Adicionar'}</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -178,10 +196,7 @@ const Players: React.FC<PlayersProps> = ({ isUserAdmin, players, onAddPlayer, on
                 <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 self-end sm:self-center">
                     <StatusToggle isActive={player.isActive} onToggle={() => onTogglePlayerStatus(player.id)} disabled={!isUserAdmin} />
                     {isUserAdmin && (
-                      <>
-                          <button onClick={() => handleOpenModal(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
-                          <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button>
-                      </>
+                        <button onClick={() => handleOpenModal(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
                     )}
                 </div>
               </div>
@@ -192,7 +207,7 @@ const Players: React.FC<PlayersProps> = ({ isUserAdmin, players, onAddPlayer, on
         </div>
       </div>
       {isModalOpen && isUserAdmin && (
-        <PlayerFormModal player={editingPlayer} onSave={handleSavePlayer} onClose={handleCloseModal} />
+        <PlayerFormModal player={editingPlayer} onSave={handleSavePlayer} onClose={handleCloseModal} onDelete={onDeletePlayer} />
       )}
     </>
   );
