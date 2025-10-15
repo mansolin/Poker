@@ -8,6 +8,8 @@ interface RankingProps {
 }
 
 const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile }) => {
+  const [rankingView, setRankingView] = useState<'annual' | 'lastGame'>('annual');
+
   const availableYears = useMemo(() => {
     const years = new Set(sessionHistory.map(s => s.date.toDate().getFullYear().toString()));
     return Array.from(years).sort((a, b) => Number(b) - Number(a));
@@ -48,6 +50,18 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile }) => {
       .sort((a, b) => b.profit - a.profit);
   }, [sessionHistory, selectedYear]);
 
+  const lastGameRankingData = useMemo(() => {
+    if (sessionHistory.length === 0) return [];
+    const lastSession = sessionHistory[0]; // Sessions are pre-sorted by date desc
+    return lastSession.players
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        profit: p.finalChips - p.totalInvested,
+      }))
+      .sort((a, b) => b.profit - a.profit);
+  }, [sessionHistory]);
+
   if (sessionHistory.length === 0) {
     return (
       <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
@@ -64,19 +78,34 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile }) => {
     return 'border-transparent';
   };
 
+  const dataToDisplay = rankingView === 'annual' ? annualRankingData : lastGameRankingData;
+  const title = rankingView === 'annual' 
+    ? `Ranking Anual (${selectedYear})` 
+    : `Resultado - Último Jogo (${sessionHistory[0]?.name || ''})`;
+
   return (
     <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h2 className="text-xl md:text-2xl font-bold text-white">Ranking Anual ({selectedYear})</h2>
-        {availableYears.length > 0 && (
+        <div className="flex items-center bg-poker-dark p-1 rounded-lg">
+          <button onClick={() => setRankingView('lastGame')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${rankingView === 'lastGame' ? 'bg-poker-green text-white' : 'text-poker-gray'}`}>
+            Último Jogo
+          </button>
+          <button onClick={() => setRankingView('annual')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${rankingView === 'annual' ? 'bg-poker-green text-white' : 'text-poker-gray'}`}>
+            Anual
+          </button>
+        </div>
+        {rankingView === 'annual' && availableYears.length > 0 && (
           <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2">
             {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
           </select>
         )}
       </div>
-      <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-        {annualRankingData.length > 0 ? (
-          annualRankingData.map((playerData, index) => (
+
+      <h2 className="text-xl md:text-2xl font-bold text-white mb-4">{title}</h2>
+
+      <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-2">
+        {dataToDisplay.length > 0 ? (
+          dataToDisplay.map((playerData, index) => (
             <div key={playerData.id} className={`flex items-center justify-between bg-poker-dark p-3 rounded-lg border-l-4 ${getPodiumColor(index)}`}>
               <div className="flex items-center">
                 <span className="text-xl font-bold text-poker-gray w-8 text-center">{index + 1}º</span>
@@ -91,7 +120,9 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile }) => {
             </div>
           ))
         ) : (
-          <p className="text-center text-poker-gray py-8">Nenhum dado de jogo encontrado para {selectedYear}.</p>
+          <p className="text-center text-poker-gray py-8">
+            {rankingView === 'annual' ? `Nenhum dado de jogo encontrado para ${selectedYear}.` : 'Nenhum dado encontrado para o último jogo.'}
+          </p>
         )}
       </div>
     </div>
