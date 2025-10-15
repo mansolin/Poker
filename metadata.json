@@ -1,0 +1,5 @@
+{
+  "name": "Poker Night - projeto",
+  "description": "A web application to manage poker games with friends. It includes features for live game tracking, player management, and performance rankings with charts.",
+  "requestFramePermissions": []
+}
