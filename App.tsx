@@ -8,7 +8,7 @@ import AddHistoricGame from './components/AddHistoricGame';
 import type { Player, GamePlayer, Session } from './types';
 import { View } from './types';
 import { db } from './firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc } from 'firebase/firestore';
 
 
 const App: React.FC = () => {
@@ -24,21 +24,34 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubscribePlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
+
+    const unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
       const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
       setPlayers(playersData);
     });
 
     const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
-    const unsubscribeSessions = onSnapshot(sessionsQuery, (snapshot) => {
+    const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
       const sessionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
       setSessionHistory(sessionsData);
+    });
+
+    const unsubLiveGame = onSnapshot(doc(db, 'liveGame', 'current'), (snapshot) => {
+      if (snapshot.exists()) {
+        const liveGameData = snapshot.data();
+        setGamePlayers(liveGameData.players || []);
+        setCurrentGameName(liveGameData.gameName || null);
+      } else {
+        setGamePlayers([]);
+        setCurrentGameName(null);
+      }
       setIsLoading(false);
     });
 
     return () => {
-      unsubscribePlayers();
-      unsubscribeSessions();
+      unsubPlayers();
+      unsubSessions();
+      unsubLiveGame();
     };
   }, []);
 
@@ -65,7 +78,6 @@ const App: React.FC = () => {
 
     if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
       await deleteDoc(doc(db, 'players', playerId));
-      setGamePlayers(prev => prev.filter(p => p.id !== playerId));
     }
   };
 
@@ -77,7 +89,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleStartGame = (playerIds: string[]) => {
+  const handleStartGame = async (playerIds: string[]) => {
     const selectedPlayers = players.filter(p => playerIds.includes(p.id));
     const newGamePlayers = selectedPlayers.map(p => ({
       ...p,
@@ -94,13 +106,17 @@ const App: React.FC = () => {
       month: '2-digit',
       year: '2-digit',
     });
-    setCurrentGameName(gameName);
+    
+    const liveGameData = {
+        gameName: gameName,
+        players: newGamePlayers
+    };
 
-    setGamePlayers(newGamePlayers);
+    await setDoc(doc(db, 'liveGame', 'current'), liveGameData);
     setActiveView(View.LiveGame);
   };
   
-  const handleAddPlayerToLiveGame = (playerId: string) => {
+  const handleAddPlayerToLiveGame = async (playerId: string) => {
     const playerToAdd = players.find(p => p.id === playerId);
     if (playerToAdd) {
         const newGamePlayer: GamePlayer = {
@@ -111,47 +127,45 @@ const App: React.FC = () => {
             finalChips: 0,
             paid: false
         };
-        setGamePlayers(prev => [...prev, newGamePlayer]);
+        const updatedPlayers = [...gamePlayers, newGamePlayer];
+        await updateDoc(doc(db, 'liveGame', 'current'), { players: updatedPlayers });
     }
   };
 
-  const handleAddRebuy = (playerId: string) => {
-    setGamePlayers(prev =>
-      prev.map(p =>
-        p.id === playerId
-          ? {
-              ...p,
-              rebuys: p.rebuys + 1,
-              totalInvested: p.totalInvested + 50,
-            }
-          : p
-      )
-    );
-  };
-
-  const handleRemoveRebuy = (playerId: string) => {
-    setGamePlayers(prev =>
-      prev.map(p => {
-        if (p.id === playerId && p.rebuys > 0) {
-          return {
+  const handleAddRebuy = async (playerId: string) => {
+    const updatedPlayers = gamePlayers.map(p =>
+      p.id === playerId
+        ? {
             ...p,
-            rebuys: p.rebuys - 1,
-            totalInvested: p.totalInvested - 50,
-          };
-        }
-        return p;
-      })
+            rebuys: p.rebuys + 1,
+            totalInvested: p.totalInvested + 50,
+          }
+        : p
     );
+    await updateDoc(doc(db, 'liveGame', 'current'), { players: updatedPlayers });
   };
 
-  const handleUpdateFinalChips = (playerId: string, chips: number) => {
-    setGamePlayers(prev =>
-      prev.map(p => (p.id === playerId ? { ...p, finalChips: chips } : p))
-    );
+  const handleRemoveRebuy = async (playerId: string) => {
+    const updatedPlayers = gamePlayers.map(p => {
+      if (p.id === playerId && p.rebuys > 0) {
+        return {
+          ...p,
+          rebuys: p.rebuys - 1,
+          totalInvested: p.totalInvested - 50,
+        };
+      }
+      return p;
+    });
+    await updateDoc(doc(db, 'liveGame', 'current'), { players: updatedPlayers });
   };
 
-  const handleUpdateGameName = (newName: string) => {
-    setCurrentGameName(newName);
+  const handleUpdateFinalChips = async (playerId: string, chips: number) => {
+    const updatedPlayers = gamePlayers.map(p => (p.id === playerId ? { ...p, finalChips: chips } : p));
+    await updateDoc(doc(db, 'liveGame', 'current'), { players: updatedPlayers });
+  };
+
+  const handleUpdateGameName = async (newName: string) => {
+    await updateDoc(doc(db, 'liveGame', 'current'), { gameName: newName });
   };
 
   const handleEndGame = async () => {
@@ -170,15 +184,14 @@ const App: React.FC = () => {
       players: gamePlayersWithPayment,
     };
     await addDoc(collection(db, 'sessions'), newSession);
-    setGamePlayers([]);
-    setCurrentGameName(null);
+    
+    await deleteDoc(doc(db, 'liveGame', 'current'));
     setActiveView(View.SessionHistory);
   };
 
-  const handleCancelGame = () => {
+  const handleCancelGame = async () => {
     if (window.confirm("Tem certeza que deseja cancelar este jogo? Todo o progresso será perdido.")) {
-      setGamePlayers([]);
-      setCurrentGameName(null);
+      await deleteDoc(doc(db, 'liveGame', 'current'));
       setActiveView(View.Players);
     }
   };
@@ -265,7 +278,7 @@ const App: React.FC = () => {
       case View.Ranking:
         return <Ranking gamePlayers={gamePlayers} sessionHistory={sessionHistory} players={players} gameName={currentGameName} />;
       default:
-        return <Players players={players} onAddPlayer={handleAddPlayer} onStartGame={handleStartGame} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onTogglePlayerStatus={handleTogglePlayerStatus} />;
+        return <Ranking gamePlayers={gamePlayers} sessionHistory={sessionHistory} players={players} gameName={currentGameName} />;
     }
   };
 
