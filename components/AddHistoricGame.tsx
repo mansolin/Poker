@@ -76,7 +76,7 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
                     // Reset values if player is deselected
                     return { ...p, isPlaying: value, totalInvested: value ? p.totalInvested : 0, finalChips: value ? p.finalChips : 0 };
                 }
-                return { ...p, [field]: parseInt(value, 10) || 0 };
+                return { ...p, [field]: Math.max(0, parseInt(value, 10) || 0) };
             }
             return p;
         }));
@@ -169,10 +169,10 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
                                         </td>
                                         <td className="py-2 px-4 text-white">{p.name}</td>
                                         <td className="py-2 px-4">
-                                            <input type="number" step="50" onFocus={handleFocus} disabled={!p.isPlaying} value={p.totalInvested} onChange={e => handlePlayerChange(p.id, 'totalInvested', e.target.value)} className="w-28 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed"/>
+                                            <input type="number" min="0" step="50" onFocus={handleFocus} disabled={!p.isPlaying} value={p.totalInvested} onChange={e => handlePlayerChange(p.id, 'totalInvested', e.target.value)} className="w-28 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed"/>
                                         </td>
                                         <td className="py-2 px-4">
-                                            <input type="number" step="50" onFocus={handleFocus} disabled={!p.isPlaying} value={p.finalChips} onChange={e => handlePlayerChange(p.id, 'finalChips', e.target.value)} className="w-28 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed"/>
+                                            <input type="number" min="0" step="50" onFocus={handleFocus} disabled={!p.isPlaying} value={p.finalChips} onChange={e => handlePlayerChange(p.id, 'finalChips', e.target.value)} className="w-28 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed"/>
                                         </td>
                                         <td className={`py-2 px-4 text-sm font-bold ${p.isPlaying ? profitColor : 'text-poker-gray/50'}`}>
                                           {p.isPlaying ? `R$ ${profit.toLocaleString('pt-BR')}` : 'R$ 0'}

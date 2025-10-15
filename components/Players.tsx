@@ -89,9 +89,7 @@ const Players: React.FC<PlayersProps> = ({ players, onAddPlayer, onUpdatePlayer,
   };
   
   const handleDelete = (playerId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
-      onDeletePlayer(playerId);
-    }
+    onDeletePlayer(playerId);
   };
 
   const handleStartGameClick = () => {

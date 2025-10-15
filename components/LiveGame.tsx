@@ -166,8 +166,9 @@ const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAd
                         <td className="px-6 py-3 whitespace-nowrap">
                         <input
                             type="number"
+                            min="0"
                             value={player.finalChips}
-                            onChange={(e) => onUpdateFinalChips(player.id, parseInt(e.target.value, 10) || 0)}
+                            onChange={(e) => onUpdateFinalChips(player.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
                             onFocus={handleFocus}
                             className="w-28 bg-poker-dark border border-poker-gray/20 text-white text-base rounded-lg focus:ring-poker-gold focus:border-poker-gold block p-2.5"
                             placeholder="0"

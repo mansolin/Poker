@@ -35,9 +35,15 @@ const Ranking: React.FC<RankingProps> = ({ gamePlayers, sessionHistory, players,
       .sort((a, b) => b.profit - a.profit);
   }, [gamePlayers]);
 
+  const dateFormat = /^\d{2}\/\d{2}\/\d{2}$/;
+
   const availableYears = useMemo(() => {
-    const years = new Set(sessionHistory.map(s => `20${s.name.split('/')[2]}`));
-    return Array.from(years).sort((a, b) => Number(b) - Number(a)); // Sort descending
+    const years = new Set(
+      sessionHistory
+        .filter(s => dateFormat.test(s.name))
+        .map(s => `20${s.name.split('/')[2]}`)
+    );
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
   }, [sessionHistory]);
 
   const [selectedYear, setSelectedYear] = useState<string>(availableYears[0] || new Date().getFullYear().toString());
@@ -47,7 +53,7 @@ const Ranking: React.FC<RankingProps> = ({ gamePlayers, sessionHistory, players,
     const playerNames = new Map<string, string>();
 
     sessionHistory
-      .filter(session => `20${session.name.split('/')[2]}` === selectedYear)
+      .filter(session => dateFormat.test(session.name) && `20${session.name.split('/')[2]}` === selectedYear)
       .forEach(session => {
         session.players.forEach(p => {
             const currentProfit = profits.get(p.id) || 0;
@@ -67,11 +73,11 @@ const Ranking: React.FC<RankingProps> = ({ gamePlayers, sessionHistory, players,
   }, [sessionHistory, selectedYear]);
 
 
-  if (gamePlayers.length === 0) {
+  if (gamePlayers.length === 0 && sessionHistory.length === 0) {
     return (
       <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-4">Ranking Indisponível</h2>
-        <p className="text-poker-gray">Conclua um jogo na seção 'AO VIVO' para ver a classificação.</p>
+        <p className="text-poker-gray">Nenhum dado de ranking disponível. Inicie ou finalize um jogo para ver as classificações.</p>
       </div>
     );
   }
@@ -80,46 +86,52 @@ const Ranking: React.FC<RankingProps> = ({ gamePlayers, sessionHistory, players,
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
       <div className="bg-poker-light p-6 rounded-lg shadow-xl">
         <h2 className="text-xl font-bold text-white mb-6">
-          Classificação da Última Partida
+          Classificação do Jogo Atual
           {gameName && <span className="text-poker-gold ml-2">| {gameName}</span>}
         </h2>
-        <div style={{ width: '100%', height: 400 }}>
-            <ResponsiveContainer>
-                <BarChart data={gameRankingData} margin={{ top: 25, right: 20, left: -20, bottom: 70 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#A0AEC0" 
-                      fontSize={12} 
-                      tickLine={false} 
-                      axisLine={false} 
-                      interval={0} 
-                      angle={-45} 
-                      textAnchor="end" 
-                    />
-                    <YAxis 
-                      stroke="#A0AEC0" 
-                      fontSize={12} 
-                      tickLine={false} 
-                      axisLine={false} 
-                      tickFormatter={(value) => `R$${value.toLocaleString('pt-BR')}`} 
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(113, 128, 150, 0.1)' }} />
-                    <Bar dataKey="profit" name="Resultado">
-                      <LabelList 
-                        dataKey="profit" 
-                        position="top" 
-                        formatter={(value: number) => value.toLocaleString('pt-BR')}
-                        fontSize={12}
-                        className="fill-poker-gray"
-                      />
-                      {gameRankingData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />
-                      ))}
-                    </Bar>
-                </BarChart>
-            </ResponsiveContainer>
-        </div>
+        {gamePlayers.length > 0 ? (
+            <div style={{ width: '100%', height: 400 }}>
+                <ResponsiveContainer>
+                    <BarChart data={gameRankingData} margin={{ top: 25, right: 20, left: -20, bottom: 70 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke="#A0AEC0" 
+                          fontSize={12} 
+                          tickLine={false} 
+                          axisLine={false} 
+                          interval={0} 
+                          angle={-45} 
+                          textAnchor="end" 
+                        />
+                        <YAxis 
+                          stroke="#A0AEC0" 
+                          fontSize={12} 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickFormatter={(value) => `R$${value.toLocaleString('pt-BR')}`} 
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(113, 128, 150, 0.1)' }} />
+                        <Bar dataKey="profit" name="Resultado">
+                          <LabelList 
+                            dataKey="profit" 
+                            position="top" 
+                            formatter={(value: number) => value.toLocaleString('pt-BR')}
+                            fontSize={12}
+                            className="fill-poker-gray"
+                          />
+                          {gameRankingData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />
+                          ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        ) : (
+            <div className="flex items-center justify-center h-full min-h-[400px]">
+                <p className="text-poker-gray">Nenhum jogo em andamento.</p>
+            </div>
+        )}
       </div>
       
       <div className="bg-poker-light p-6 rounded-lg shadow-xl">
@@ -139,43 +151,49 @@ const Ranking: React.FC<RankingProps> = ({ gamePlayers, sessionHistory, players,
                 </select>
             )}
         </div>
-        <div style={{ width: '100%', height: 400 }}>
-            <ResponsiveContainer>
-                <BarChart data={annualRankingData} margin={{ top: 25, right: 20, left: -20, bottom: 70 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#A0AEC0" 
-                      fontSize={12} 
-                      tickLine={false} 
-                      axisLine={false} 
-                      interval={0} 
-                      angle={-45} 
-                      textAnchor="end" 
-                    />
-                    <YAxis 
-                      stroke="#A0AEC0" 
-                      fontSize={12} 
-                      tickLine={false} 
-                      axisLine={false} 
-                      tickFormatter={(value) => `R$${value.toLocaleString('pt-BR')}`} 
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(113, 128, 150, 0.1)' }} />
-                    <Bar dataKey="profit" name="Resultado">
-                      <LabelList 
-                        dataKey="profit" 
-                        position="top" 
-                        formatter={(value: number) => value.toLocaleString('pt-BR')}
-                        fontSize={12}
-                        className="fill-poker-gray"
-                      />
-                      {annualRankingData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />
-                      ))}
-                    </Bar>
-                </BarChart>
-            </ResponsiveContainer>
-        </div>
+        {annualRankingData.length > 0 ? (
+            <div style={{ width: '100%', height: 400 }}>
+                <ResponsiveContainer>
+                    <BarChart data={annualRankingData} margin={{ top: 25, right: 20, left: -20, bottom: 70 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke="#A0AEC0" 
+                          fontSize={12} 
+                          tickLine={false} 
+                          axisLine={false} 
+                          interval={0} 
+                          angle={-45} 
+                          textAnchor="end" 
+                        />
+                        <YAxis 
+                          stroke="#A0AEC0" 
+                          fontSize={12} 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickFormatter={(value) => `R$${value.toLocaleString('pt-BR')}`} 
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(113, 128, 150, 0.1)' }} />
+                        <Bar dataKey="profit" name="Resultado">
+                          <LabelList 
+                            dataKey="profit" 
+                            position="top" 
+                            formatter={(value: number) => value.toLocaleString('pt-BR')}
+                            fontSize={12}
+                            className="fill-poker-gray"
+                          />
+                          {annualRankingData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />
+                          ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        ) : (
+             <div className="flex items-center justify-center h-full min-h-[400px]">
+                <p className="text-poker-gray">Nenhum histórico de jogo encontrado para {selectedYear}.</p>
+            </div>
+        )}
       </div>
     </div>
   );

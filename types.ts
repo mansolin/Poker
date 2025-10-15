@@ -26,8 +26,3 @@ export enum View {
   SessionHistory = 'Histórico',
   Ranking = 'Ranking',
 }
-
-export interface AnnualPerformanceData {
-  month: string;
-  [playerName: string]: string | number;
-}
