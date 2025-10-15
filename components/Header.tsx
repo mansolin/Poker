@@ -10,6 +10,7 @@ import PokerClubLogo from './PokerClubLogo';
 import LogoutIcon from './icons/LogoutIcon';
 
 interface HeaderProps {
+  userName: string | null;
   userRole: UserRole;
   isVisitor: boolean;
   activeView: View;
@@ -17,7 +18,7 @@ interface HeaderProps {
   onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ userRole, isVisitor, activeView, setActiveView, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ userName, userRole, isVisitor, activeView, setActiveView, onLogout }) => {
   const navItems = [
     { view: View.LiveGame, icon: <PokerChipIcon /> },
     { view: View.Players, icon: <UsersIcon /> },
@@ -28,6 +29,13 @@ const Header: React.FC<HeaderProps> = ({ userRole, isVisitor, activeView, setAct
   
   const isUserAdmin = userRole === 'owner' || userRole === 'admin';
   const shouldShowLogout = userRole !== 'visitor' || isVisitor;
+  
+  const roleTranslations: { [key in UserRole]: string } = {
+    owner: 'Dono',
+    admin: 'Admin',
+    pending: 'Pendente',
+    visitor: 'Visitante'
+  };
 
   return (
     <header className="bg-poker-light shadow-lg">
@@ -82,6 +90,11 @@ const Header: React.FC<HeaderProps> = ({ userRole, isVisitor, activeView, setAct
           </ul>
         </nav>
       </div>
+       {userName && !isVisitor && userRole !== 'pending' && (
+        <div className="bg-poker-dark text-right text-xs text-poker-gray px-4 sm:px-8 py-1">
+            Usuário: <span className="font-semibold text-white">{userName}</span> | <span className="italic">{roleTranslations[userRole]}</span>
+        </div>
+      )}
     </header>
   );
 };

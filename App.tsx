@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import LiveGame from './components/LiveGame';
 import Players from './components/Players';
@@ -19,6 +19,7 @@ import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } fro
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [currentUserData, setCurrentUserData] = useState<AppUser | null>(null);
   const [userRole, setUserRole] = useState<UserRole>('visitor');
   const [isVisitorMode, setIsVisitorMode] = useState(false);
   const [activeView, setActiveView] = useState<View>(View.Ranking);
@@ -45,8 +46,9 @@ const App: React.FC = () => {
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists()) {
-          const userData = userDoc.data() as AppUser;
+          const userData = { uid: currentUser.uid, ...userDoc.data() } as AppUser;
           setUserRole(userData.role);
+          setCurrentUserData(userData);
         } else {
           // User document doesn't exist, create it.
           // Check if an owner already exists.
@@ -56,14 +58,16 @@ const App: React.FC = () => {
 
           const newRole: UserRole = ownerSnapshot.empty ? 'owner' : 'pending';
           
-          const newUserDocData: Omit<AppUser, 'uid'> = {
+          const newUserDocData: AppUser = {
+              uid: currentUser.uid,
               name: currentUser.displayName || currentUser.email || 'Novo Usuário',
               email: currentUser.email || '',
               role: newRole
           };
 
-          await setDoc(userDocRef, newUserDocData);
+          await setDoc(userDocRef, { name: newUserDocData.name, email: newUserDocData.email, role: newUserDocData.role });
           setUserRole(newRole);
+          setCurrentUserData(newUserDocData);
 
           if (newRole === 'owner') {
             showToast('Sua conta de Dono foi configurada!', 'success');
@@ -72,6 +76,7 @@ const App: React.FC = () => {
       } else {
         setUserRole('visitor');
         setIsVisitorMode(false);
+        setCurrentUserData(null);
       }
       setIsLoading(false);
     });
@@ -82,13 +87,22 @@ const App: React.FC = () => {
     let unsubAppUsers: () => void = () => {};
     if (userRole === 'owner') {
         unsubAppUsers = onSnapshot(query(collection(db, 'users'), orderBy('name')), (snapshot) => {
-            setAppUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
+            const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
+            setAppUsers(users);
+            // Also update current user data if it changed (e.g., role update)
+            if (user) {
+                const updatedCurrentUser = users.find(u => u.uid === user.uid);
+                if (updatedCurrentUser) {
+                    setCurrentUserData(updatedCurrentUser);
+                    setUserRole(updatedCurrentUser.role);
+                }
+            }
         });
     } else {
         setAppUsers([]);
     }
     return () => unsubAppUsers();
-  }, [userRole]);
+  }, [userRole, user]);
 
   useEffect(() => {
     const unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
@@ -295,7 +309,7 @@ const App: React.FC = () => {
           // without signing them in. This is a common workaround for admin panels.
           // For a production app, this should be a backend function.
           const tempUserCredential = await createUserWithEmailAndPassword(auth, userData.email, password);
-          await setDoc(doc(db, 'users', tempUserCredential.user.uid), userData);
+          await setDoc(doc(db, 'users', tempUserCredential.user.uid), { name: userData.name, email: userData.email, role: userData.role });
 
           // Now, re-authenticate the original admin user
           if (auth.currentUser && user) {
@@ -354,7 +368,7 @@ const App: React.FC = () => {
   if (userRole === 'pending') {
       return (
          <div className="min-h-screen bg-poker-dark">
-            <Header userRole={userRole} isVisitor={false} activeView={activeView} setActiveView={() => {}} onLogout={handleLogout} />
+            <Header userName={currentUserData?.name || null} userRole={userRole} isVisitor={false} activeView={activeView} setActiveView={() => {}} onLogout={handleLogout} />
             <main className="container mx-auto p-4 md:p-8 flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)'}}>
                 <div className="bg-poker-light p-10 rounded-lg shadow-xl text-center max-w-lg">
                     <div className="text-poker-gold mx-auto mb-4 w-16 h-16"><ClockIcon /></div>
@@ -368,7 +382,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-poker-dark">
-      <Header userRole={userRole} isVisitor={isVisitorMode} activeView={activeView} setActiveView={setActiveView} onLogout={handleLogout} />
+      <Header userName={currentUserData?.name || null} userRole={userRole} isVisitor={isVisitorMode} activeView={activeView} setActiveView={setActiveView} onLogout={handleLogout} />
       <main className="container mx-auto p-4 md:p-8">
         <div key={activeView} className="animate-fade-in">{renderContent()}</div>
       </main>
