@@ -28,4 +28,13 @@ export enum View {
   Players = 'Jogadores',
   SessionHistory = 'Histórico',
   Ranking = 'Ranking',
+  PlayerProfile = 'Perfil do Jogador',
+  Cashier = 'Caixa',
+  Settings = 'Configurações',
+}
+
+export interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+  visible: boolean;
 }

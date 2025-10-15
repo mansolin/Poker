@@ -3,7 +3,7 @@ import type { Player } from '../types';
 import WhatsAppIcon from './icons/WhatsAppIcon';
 import EditIcon from './icons/EditIcon';
 import TrashIcon from './icons/TrashIcon';
-import { generateAndUploadMockData } from '../mock-data';
+import PlayerAvatar from './PlayerAvatar';
 
 interface PlayersProps {
   isLoggedIn: boolean;
@@ -12,7 +12,8 @@ interface PlayersProps {
   onUpdatePlayer: (player: Player) => void;
   onDeletePlayer: (playerId: string) => void;
   onStartGame: (playerIds: string[]) => void;
-  onTogglePlayerStatus: (playerId: string) => void;
+  onTogglePlayerStatus: (playerId:string) => void;
+  onViewProfile: (playerId: string) => void;
 }
 
 const StatusToggle: React.FC<{ isActive: boolean; onToggle: () => void; disabled: boolean }> = ({ isActive, onToggle, disabled }) => {
@@ -30,13 +31,12 @@ const StatusToggle: React.FC<{ isActive: boolean; onToggle: () => void; disabled
   );
 };
 
-const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onUpdatePlayer, onDeletePlayer, onStartGame, onTogglePlayerStatus }) => {
+const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onUpdatePlayer, onDeletePlayer, onStartGame, onTogglePlayerStatus, onViewProfile }) => {
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [pixKey, setPixKey] = useState('');
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
-  const [isGeneratingData, setIsGeneratingData] = useState(false);
 
   useEffect(() => {
     if (editingPlayer) {
@@ -56,9 +56,7 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
       .join(' ');
   };
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setName(capitalizeName(e.target.value));
-  };
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => setName(capitalizeName(e.target.value));
   
   const resetForm = () => {
     setName('');
@@ -70,11 +68,8 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim()) {
-      if (editingPlayer) {
-        onUpdatePlayer({ ...editingPlayer, name, whatsapp, pixKey });
-      } else {
-        onAddPlayer({ name, whatsapp, pixKey });
-      }
+      if (editingPlayer) onUpdatePlayer({ ...editingPlayer, name, whatsapp, pixKey });
+      else onAddPlayer({ name, whatsapp, pixKey });
       resetForm();
     }
   };
@@ -82,44 +77,17 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
   const handlePlayerSelection = (playerId: string) => {
     setSelectedPlayers(prev => {
       const newSelection = new Set(prev);
-      if (newSelection.has(playerId)) {
-        newSelection.delete(playerId);
-      } else {
-        newSelection.add(playerId);
-      }
+      newSelection.has(playerId) ? newSelection.delete(playerId) : newSelection.add(playerId);
       return newSelection;
     });
   };
   
-  const handleDelete = (playerId: string) => {
-    onDeletePlayer(playerId);
-  };
-
   const handleStartGameClick = () => {
     if (selectedPlayers.size > 1) {
       onStartGame(Array.from(selectedPlayers));
       setSelectedPlayers(new Set());
     } else {
       alert("Selecione pelo menos 2 jogadores para iniciar um jogo.");
-    }
-  };
-
-  const handleGenerateData = async () => {
-    if (isGeneratingData) return;
-
-    const confirmation = window.confirm(
-      "Tem certeza que deseja adicionar 10 jogadores e 36 jogos de teste ao banco de dados? Esta ação não pode ser desfeita e irá adicionar dados à sua base atual."
-    );
-
-    if (confirmation) {
-      setIsGeneratingData(true);
-      const success = await generateAndUploadMockData();
-      if (success) {
-        alert('Dados de teste gerados com sucesso!');
-      } else {
-        alert('Ocorreu um erro ao gerar os dados. Verifique o console para mais detalhes.');
-      }
-      setIsGeneratingData(false);
     }
   };
 
@@ -155,11 +123,11 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
                 <input type="text" id="pix" value={pixKey} onChange={(e) => setPixKey(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5" placeholder="Chave PIX" />
               </div>
               <div className="flex items-center space-x-2 !mt-6">
-                  <button type="submit" className="w-full text-white bg-poker-green hover:bg-poker-green/80 focus:ring-4 focus:outline-none focus:ring-poker-green/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-all duration-300">
+                  <button type="submit" className="w-full text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
                       {editingPlayer ? 'Salvar Alterações' : 'Adicionar Jogador'}
                   </button>
                   {editingPlayer && (
-                      <button type="button" onClick={resetForm} className="w-full text-poker-gray bg-poker-dark hover:bg-poker-dark/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-all duration-300">
+                      <button type="button" onClick={resetForm} className="w-full text-poker-gray bg-poker-dark hover:bg-poker-dark/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
                           Cancelar
                       </button>
                   )}
@@ -171,23 +139,12 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
       <div className={isLoggedIn ? "lg:col-span-2" : "lg:col-span-3"}>
         <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-            <div className="flex items-center space-x-4">
               <h2 className="text-xl font-bold text-white">Jogadores Cadastrados</h2>
-              {isLoggedIn && (
-                <button
-                  onClick={handleGenerateData}
-                  disabled={isGeneratingData}
-                  className="px-3 py-1 text-xs font-semibold text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-wait"
-                >
-                  {isGeneratingData ? 'Gerando...' : 'Gerar Dados de Teste'}
-                </button>
-              )}
-            </div>
             {isLoggedIn && (
                 <button
                 onClick={handleStartGameClick}
                 disabled={selectedPlayers.size < 2}
-                className="px-6 py-2 w-full sm:w-auto text-white bg-poker-gold hover:bg-poker-gold/80 disabled:bg-poker-gray/50 disabled:cursor-not-allowed font-medium rounded-lg text-sm transition-all duration-300"
+                className="px-6 py-2 w-full sm:w-auto text-white bg-poker-gold hover:bg-poker-gold/80 disabled:bg-poker-gray/50 disabled:cursor-not-allowed font-medium rounded-lg text-sm"
                 >
                 Iniciar Jogo
                 </button>
@@ -199,34 +156,24 @@ const Players: React.FC<PlayersProps> = ({ isLoggedIn, players, onAddPlayer, onU
                 <div key={player.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between bg-poker-dark p-3 rounded-lg transition-opacity duration-300 ${!player.isActive ? 'opacity-50' : ''}`}>
                   <div className="flex items-center w-full sm:w-auto flex-grow mb-3 sm:mb-0">
                     {isLoggedIn && (
-                        <input
-                        id={`checkbox-${player.id}`}
-                        type="checkbox"
-                        checked={selectedPlayers.has(player.id)}
-                        onChange={() => handlePlayerSelection(player.id)}
-                        disabled={!player.isActive}
-                        className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded focus:ring-poker-green focus:ring-2 flex-shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
-                        />
+                        <input id={`checkbox-${player.id}`} type="checkbox" checked={selectedPlayers.has(player.id)} onChange={() => handlePlayerSelection(player.id)} disabled={!player.isActive} className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded focus:ring-poker-green disabled:cursor-not-allowed"/>
                     )}
-                    <label htmlFor={`checkbox-${player.id}`} className={`${isLoggedIn ? 'ml-3' : 'ml-0'} flex flex-col sm:flex-row sm:items-center sm:space-x-3 text-sm flex-wrap flex-grow`}>
-                      <span className="text-base font-semibold text-white">{player.name}</span>
-                      <div className="flex items-center space-x-2 text-poker-gray text-xs sm:text-sm mt-1 sm:mt-0">
+                    <PlayerAvatar name={player.name} size="md" />
+                    <div className="ml-3 flex flex-col">
+                        <button onClick={() => onViewProfile(player.id)} className="text-base font-semibold text-white text-left hover:text-poker-gold">{player.name}</button>
+                        <div className="flex items-center space-x-2 text-poker-gray text-xs">
                           {player.whatsapp && <span>{player.whatsapp}</span>}
                           {player.whatsapp && player.pixKey && <span className="text-poker-gray/50">|</span>}
                           {player.pixKey && <span>PIX: {player.pixKey}</span>}
-                      </div>
-                    </label>
+                        </div>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 self-end sm:self-center">
                       <StatusToggle isActive={player.isActive} onToggle={() => onTogglePlayerStatus(player.id)} disabled={!isLoggedIn} />
                       {isLoggedIn && (
                         <>
-                            <button onClick={() => setEditingPlayer(player)} className="p-2 text-poker-gray hover:text-poker-gold transition-colors duration-200">
-                                <EditIcon />
-                            </button>
-                            <button onClick={() => handleDelete(player.id)} className="p-2 text-poker-gray hover:text-red-500 transition-colors duration-200">
-                                <TrashIcon />
-                            </button>
+                            <button onClick={() => setEditingPlayer(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
+                            <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button>
                         </>
                       )}
                   </div>

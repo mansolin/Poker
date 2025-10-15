@@ -4,6 +4,8 @@ import PokerChipIcon from './icons/PokerChipIcon';
 import UsersIcon from './icons/UsersIcon';
 import TrophyIcon from './icons/TrophyIcon';
 import HistoryIcon from './icons/HistoryIcon';
+import CashierIcon from './icons/CashierIcon';
+import SettingsIcon from './icons/SettingsIcon';
 import PokerClubLogo from './PokerClubLogo';
 import LogoutIcon from './icons/LogoutIcon';
 
@@ -21,6 +23,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setA
     { view: View.Players, icon: <UsersIcon /> },
     { view: View.SessionHistory, icon: <HistoryIcon /> },
     { view: View.Ranking, icon: <TrophyIcon /> },
+    { view: View.Cashier, icon: <CashierIcon /> },
   ];
 
   return (
@@ -48,12 +51,25 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setA
                 </button>
               </li>
             ))}
+             {isLoggedIn && (
+              <li>
+                <button
+                  onClick={() => setActiveView(View.Settings)}
+                  title="Configurações"
+                  className={`flex items-center px-2 py-2 text-sm md:text-base font-semibold rounded-md transition-all duration-300 ${
+                    activeView === View.Settings ? 'bg-poker-green text-white' : 'text-poker-gray hover:text-white'
+                  }`}
+                >
+                  <span className="h-5 w-5"><SettingsIcon /></span>
+                </button>
+              </li>
+            )}
             {(isLoggedIn || isVisitor) && (
                <li>
                 <button
                   onClick={onLogout}
                   title={isLoggedIn ? "Sair da conta de Admin" : "Sair do modo Visitante"}
-                  className="flex items-center px-2 py-2 sm:px-3 md:px-4 text-sm md:text-base font-semibold rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
+                  className="flex items-center px-2 py-2 text-sm md:text-base font-semibold rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
                 >
                   <span className="h-5 w-5"><LogoutIcon /></span>
                 </button>
