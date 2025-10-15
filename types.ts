@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Player {
@@ -40,7 +41,6 @@ export enum View {
   PlayerProfile = 'Perfil do Jogador',
   Cashier = 'Caixa',
   Settings = 'Configurações',
-  Register = 'Registrar',
 }
 
 export interface ToastState {

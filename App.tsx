@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import LiveGame from './components/LiveGame';
@@ -5,12 +6,12 @@ import Players from './components/Players';
 import Ranking from './components/Ranking';
 import SessionHistory from './components/SessionHistory';
 import AddHistoricGame from './components/AddHistoricGame';
-import Login from './components/Login';
-import Register from './components/Register';
+import Auth from './components/Auth';
 import PlayerProfile from './components/PlayerProfile';
 import Cashier from './components/Cashier';
 import Settings from './components/Settings';
 import Toast from './components/Toast';
+import ClockIcon from './components/icons/ClockIcon';
 import type { Player, GamePlayer, Session, ToastState, AppUser, UserRole, GameDefaults } from './types';
 import { View } from './types';
 import { db, auth } from './firebase';
@@ -46,11 +47,7 @@ const App: React.FC = () => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data() as AppUser;
-          if (userData.role === 'pending') {
-            setUserRole('pending');
-          } else {
-            setUserRole(userData.role);
-          }
+          setUserRole(userData.role);
         } else {
           // User document doesn't exist, create it.
           // Check if an owner already exists.
@@ -298,10 +295,9 @@ const App: React.FC = () => {
       case View.Players: return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onStartGame={handleStartGame} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
       case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onIncludeGame={() => setModalMode('add')} onEditGame={handleOpenEditModal} onDeleteGame={handleDeleteSession} onTogglePayment={handleTogglePaymentStatus} onViewProfile={handleViewProfile}/>;
       case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} />;
-      case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Players)} />;
+      case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Ranking)} />;
       case View.Cashier: return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettlePlayerDebts} onViewProfile={handleViewProfile} />;
       case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} />;
-      case View.Register: return <Register onSwitchToLogin={() => setActiveView(View.Ranking)} />;
       default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} />;
     }
   };
@@ -309,20 +305,20 @@ const App: React.FC = () => {
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen bg-poker-dark"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-poker-gold"></div><p className="ml-4 text-white text-lg">Carregando...</p></div>;
   }
-  if (!user && !isVisitorMode && activeView !== View.Register) {
-    return <Login onEnterAsVisitor={() => setIsVisitorMode(true)} onSwitchToRegister={() => setActiveView(View.Register)} />;
+
+  if (!user && !isVisitorMode) {
+    return <Auth onEnterAsVisitor={() => setIsVisitorMode(true)} />;
   }
-  if (activeView === View.Register) {
-      return <Register onSwitchToLogin={() => setActiveView(View.Ranking)} />;
-  }
+  
   if (userRole === 'pending') {
       return (
          <div className="min-h-screen bg-poker-dark">
             <Header userRole={userRole} isVisitor={false} activeView={activeView} setActiveView={() => {}} onLogout={handleLogout} />
-            <main className="container mx-auto p-4 md:p-8 text-center">
-                <div className="bg-poker-light p-10 rounded-lg shadow-xl">
+            <main className="container mx-auto p-4 md:p-8 flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)'}}>
+                <div className="bg-poker-light p-10 rounded-lg shadow-xl text-center max-w-lg">
+                    <div className="text-poker-gold mx-auto mb-4 w-16 h-16"><ClockIcon /></div>
                     <h2 className="text-2xl font-bold text-white mb-4">Acesso Pendente</h2>
-                    <p className="text-poker-gray">Sua conta foi criada e está aguardando aprovação do Dono do clube. <br />Por favor, aguarde para ter acesso às funcionalidades.</p>
+                    <p className="text-poker-gray">Sua conta foi criada com sucesso e está aguardando aprovação do Dono do clube. <br />Você será notificado quando seu acesso for liberado.</p>
                 </div>
             </main>
          </div>
