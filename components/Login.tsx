@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../firebase';
+import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence, sendPasswordResetEmail, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../firebase';
 import PokerClubLogo from './PokerClubLogo';
 import EyeIcon from './icons/EyeIcon';
 import EyeSlashIcon from './icons/EyeSlashIcon';
+import GoogleIcon from './icons/GoogleIcon';
 
 interface LoginProps {
     onEnterAsVisitor: () => void;
@@ -33,6 +34,17 @@ const Login: React.FC<LoginProps> = ({ onEnterAsVisitor, onSwitchToRegister }) =
             setError('Credenciais inválidas. Verifique seu e-mail e senha.');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        setError('');
+        setMessage('');
+        try {
+            await signInWithPopup(auth, googleProvider);
+            // onAuthStateChanged in App.tsx will handle the rest
+        } catch (err: any) {
+            setError('Falha ao autenticar com o Google. Tente novamente.');
         }
     };
     
@@ -101,6 +113,13 @@ const Login: React.FC<LoginProps> = ({ onEnterAsVisitor, onSwitchToRegister }) =
                     {view === 'login' && (
                         <>
                             <div className="relative flex py-5 items-center"><div className="flex-grow border-t border-poker-gray/20"></div><span className="flex-shrink mx-4 text-poker-gray text-xs">OU</span><div className="flex-grow border-t border-poker-gray/20"></div></div>
+                            <button
+                                type="button"
+                                onClick={handleGoogleLogin}
+                                className="w-full flex justify-center items-center text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-lg text-sm px-5 py-3 text-center mb-4"
+                            >
+                               <GoogleIcon /> <span className="ml-2">Entrar com Google</span>
+                            </button>
                             <button type="button" onClick={onEnterAsVisitor} className="w-full text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 font-medium rounded-lg text-sm px-5 py-3 text-center">Entrar como Visitante</button>
                         </>
                     )}
