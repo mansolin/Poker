@@ -6,26 +6,22 @@ import TrophyIcon from './icons/TrophyIcon';
 import HistoryIcon from './icons/HistoryIcon';
 import PokerClubLogo from './PokerClubLogo';
 import LogoutIcon from './icons/LogoutIcon';
-import { auth } from '../firebase';
-import { signOut } from 'firebase/auth';
 
 interface HeaderProps {
   isLoggedIn: boolean;
+  isVisitor: boolean;
   activeView: View;
   setActiveView: (view: View) => void;
+  onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isLoggedIn, activeView, setActiveView }) => {
+const Header: React.FC<HeaderProps> = ({ isLoggedIn, isVisitor, activeView, setActiveView, onLogout }) => {
   const navItems = [
     { view: View.LiveGame, icon: <PokerChipIcon /> },
     { view: View.Players, icon: <UsersIcon /> },
     { view: View.SessionHistory, icon: <HistoryIcon /> },
     { view: View.Ranking, icon: <TrophyIcon /> },
   ];
-  
-  const handleLogout = () => {
-    signOut(auth);
-  };
 
   return (
     <header className="bg-poker-light shadow-lg">
@@ -51,11 +47,11 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, activeView, setActiveView }
                 </button>
               </li>
             ))}
-            {isLoggedIn && (
+            {(isLoggedIn || isVisitor) && (
                <li>
                 <button
-                  onClick={handleLogout}
-                  title="Sair"
+                  onClick={onLogout}
+                  title={isLoggedIn ? "Sair da conta de Admin" : "Sair do modo Visitante"}
                   className="flex items-center px-3 py-2 md:px-4 md:py-2 text-sm md:text-base font-semibold rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
                 >
                   <span className="h-5 w-5"><LogoutIcon /></span>

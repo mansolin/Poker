@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth } from '../firebase';
 import PokerClubLogo from './PokerClubLogo';
 
@@ -10,6 +10,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onEnterAsVisitor }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -18,6 +19,7 @@ const Login: React.FC<LoginProps> = ({ onEnterAsVisitor }) => {
         setError('');
         setIsLoading(true);
         try {
+            await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
             await signInWithEmailAndPassword(auth, email, password);
         } catch (err: any) {
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
@@ -64,7 +66,21 @@ const Login: React.FC<LoginProps> = ({ onEnterAsVisitor }) => {
                                 required
                             />
                         </div>
-                        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+                        <div className="flex items-center">
+                            <div className="flex items-center h-5">
+                                <input
+                                    id="remember"
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="w-4 h-4 border border-gray-600 rounded bg-poker-dark text-poker-gold focus:ring-poker-gold"
+                                />
+                            </div>
+                            <div className="ml-3 text-sm">
+                                <label htmlFor="remember" className="text-poker-gray cursor-pointer">Manter conectado</label>
+                            </div>
+                        </div>
+                        {error && <p className="text-sm text-red-500 text-center !mt-4">{error}</p>}
                         <button
                             type="submit"
                             disabled={isLoading}

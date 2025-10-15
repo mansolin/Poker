@@ -10,7 +10,7 @@ import type { Player, GamePlayer, Session } from './types';
 import { View } from './types';
 import { db, auth } from './firebase';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc } from 'firebase/firestore';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -262,7 +262,15 @@ const App: React.FC = () => {
     }
   };
   
-    const renderContent = () => {
+  const handleLogout = () => {
+    if (isLoggedIn) {
+      signOut(auth);
+    } else if (isVisitor) {
+      setIsVisitor(false);
+    }
+  };
+  
+  const renderContent = () => {
     switch (activeView) {
       case View.LiveGame:
         return (
@@ -317,7 +325,13 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-poker-dark">
-      <Header isLoggedIn={isLoggedIn} activeView={activeView} setActiveView={setActiveView} />
+      <Header 
+        isLoggedIn={isLoggedIn} 
+        isVisitor={isVisitor}
+        activeView={activeView} 
+        setActiveView={setActiveView}
+        onLogout={handleLogout}
+      />
       <main className="container mx-auto p-4 md:p-8">
         {renderContent()}
       </main>
