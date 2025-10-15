@@ -69,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, isVisitor, activeVi
                   <button
                     onClick={() => setActiveView(View.Settings)}
                     title="Configurações"
-                    className={`p-2 rounded-md transition-all duration-300 ${
+                    className={`h-10 w-10 flex items-center justify-center rounded-md transition-all duration-300 ${
                       activeView === View.Settings ? 'bg-green-700 text-white' : 'bg-transparent text-poker-gray hover:text-white'
                     }`}
                   >
@@ -82,7 +82,7 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, isVisitor, activeVi
                   <button
                     onClick={onLogout}
                     title="Sair"
-                    className="p-2 rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
+                    className="h-10 w-10 flex items-center justify-center rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
                   >
                     <span className="h-5 w-5"><LogoutIcon /></span>
                   </button>
