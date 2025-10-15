@@ -4,6 +4,7 @@ import EditIcon from './icons/EditIcon';
 import PlusIcon from './icons/PlusIcon';
 
 interface LiveGameProps {
+  isLoggedIn: boolean;
   players: GamePlayer[];
   allPlayers: Player[];
   gameName: string | null;
@@ -17,7 +18,7 @@ interface LiveGameProps {
   onAddPlayerToGame: (playerId: string) => void;
 }
 
-const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAddRebuy, onRemoveRebuy, onUpdateFinalChips, onUpdateGameName, onEndGame, onCancelGame, onGoToPlayers, onAddPlayerToGame }) => {
+const LiveGame: React.FC<LiveGameProps> = ({ isLoggedIn, players, allPlayers, gameName, onAddRebuy, onRemoveRebuy, onUpdateFinalChips, onUpdateGameName, onEndGame, onCancelGame, onGoToPlayers, onAddPlayerToGame }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(gameName || '');
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
@@ -60,12 +61,14 @@ const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAd
       <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-4">Nenhum Jogo Ativo</h2>
         <p className="text-poker-gray mb-6">Vá para a seção 'Jogadores' para selecionar jogadores e iniciar um novo jogo.</p>
-        <button
-          onClick={onGoToPlayers}
-          className="px-6 py-3 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm transition-all duration-300 shadow-lg"
-        >
-          Novo Jogo
-        </button>
+        {isLoggedIn && (
+          <button
+            onClick={onGoToPlayers}
+            className="px-6 py-3 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm transition-all duration-300 shadow-lg"
+          >
+            Novo Jogo
+          </button>
+        )}
       </div>
     );
   }
@@ -73,7 +76,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAd
   return (
     <div className="space-y-6">
        <div className="flex justify-between items-center bg-poker-light p-4 rounded-lg shadow-xl">
-          {isEditingName ? (
+          {isEditingName && isLoggedIn ? (
             <div className="flex items-center gap-2 w-full">
                 <input 
                     type="text"
@@ -88,18 +91,22 @@ const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAd
           ) : (
             <div className="flex items-center space-x-3">
                 <h2 className="text-2xl font-bold text-white">Jogo: <span className="text-poker-gold">{gameName}</span></h2>
-                <button onClick={() => setIsEditingName(true)} className="text-poker-gray hover:text-poker-gold transition-colors duration-200">
-                    <EditIcon />
-                </button>
+                {isLoggedIn && (
+                    <button onClick={() => setIsEditingName(true)} className="text-poker-gray hover:text-poker-gold transition-colors duration-200">
+                        <EditIcon />
+                    </button>
+                )}
             </div>
           )}
-          <button
-            onClick={() => setIsAddPlayerModalOpen(true)}
-            className="flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-dark text-white shadow-md hover:bg-poker-dark/80 ml-4"
-          >
-            <span className="mr-2 h-5 w-5"><PlusIcon /></span>
-            Incluir Jogador
-          </button>
+          {isLoggedIn && (
+            <button
+              onClick={() => setIsAddPlayerModalOpen(true)}
+              className="flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-dark text-white shadow-md hover:bg-poker-dark/80 ml-4"
+            >
+              <span className="mr-2 h-5 w-5"><PlusIcon /></span>
+              Incluir Jogador
+            </button>
+          )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -146,7 +153,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAd
                           <div className="flex items-center space-x-3">
                             <button
                               onClick={() => onRemoveRebuy(player.id)}
-                              disabled={player.rebuys === 0}
+                              disabled={player.rebuys === 0 || !isLoggedIn}
                               className="bg-red-600 hover:bg-red-700 text-white font-bold h-7 w-7 rounded-full flex items-center justify-center text-lg transition-all duration-200 disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
                               aria-label="Remover rebuy"
                             >
@@ -155,7 +162,8 @@ const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAd
                             <span className="font-semibold text-white w-5 text-center">{player.rebuys}</span>
                             <button
                               onClick={() => onAddRebuy(player.id)}
-                              className="bg-poker-green hover:bg-poker-green/80 text-white font-bold h-7 w-7 rounded-full flex items-center justify-center text-lg transition-all duration-200"
+                              disabled={!isLoggedIn}
+                              className="bg-poker-green hover:bg-poker-green/80 text-white font-bold h-7 w-7 rounded-full flex items-center justify-center text-lg transition-all duration-200 disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
                               aria-label="Adicionar rebuy"
                             >
                               +
@@ -168,9 +176,10 @@ const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAd
                             type="number"
                             min="0"
                             value={player.finalChips}
+                            disabled={!isLoggedIn}
                             onChange={(e) => onUpdateFinalChips(player.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
                             onFocus={handleFocus}
-                            className="w-28 bg-poker-dark border border-poker-gray/20 text-white text-base rounded-lg focus:ring-poker-gold focus:border-poker-gold block p-2.5"
+                            className="w-28 bg-poker-dark border border-poker-gray/20 text-white text-base rounded-lg focus:ring-poker-gold focus:border-poker-gold block p-2.5 disabled:bg-poker-dark/50 disabled:cursor-not-allowed"
                             placeholder="0"
                         />
                         </td>
@@ -184,32 +193,34 @@ const LiveGame: React.FC<LiveGameProps> = ({ players, allPlayers, gameName, onAd
             </table>
         </div>
       </div>
-      <div className="flex justify-between items-center">
-        <div className="text-left">
-            {!chipsMatch && totalChips > 0 && (
-                <p className="text-sm text-yellow-400 animate-pulse">
-                    Diferença de R$ {(totalChips - distributedChips).toLocaleString('pt-BR')}. Os totais de fichas devem ser iguais.
-                </p>
-            )}
+      {isLoggedIn && (
+        <div className="flex justify-between items-center">
+            <div className="text-left">
+                {!chipsMatch && totalChips > 0 && (
+                    <p className="text-sm text-yellow-400 animate-pulse">
+                        Diferença de R$ {(totalChips - distributedChips).toLocaleString('pt-BR')}. Os totais de fichas devem ser iguais.
+                    </p>
+                )}
+            </div>
+            <div className="flex items-center space-x-4">
+                <button
+                onClick={onCancelGame}
+                className="px-6 py-3 text-poker-gray bg-poker-dark hover:bg-poker-dark/50 font-medium rounded-lg text-sm transition-all duration-300"
+                >
+                Cancelar Jogo
+                </button>
+                <button
+                onClick={onEndGame}
+                disabled={!chipsMatch}
+                title={!chipsMatch ? "O total de fichas distribuídas deve ser igual ao montante total em dinheiro" : "Salvar esta sessão no histórico"}
+                className="px-6 py-3 text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm transition-all duration-300 shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
+                >
+                Encerrar e Salvar Jogo
+                </button>
+            </div>
         </div>
-        <div className="flex items-center space-x-4">
-            <button
-              onClick={onCancelGame}
-              className="px-6 py-3 text-poker-gray bg-poker-dark hover:bg-poker-dark/50 font-medium rounded-lg text-sm transition-all duration-300"
-            >
-              Cancelar Jogo
-            </button>
-            <button
-              onClick={onEndGame}
-              disabled={!chipsMatch}
-              title={!chipsMatch ? "O total de fichas distribuídas deve ser igual ao montante total em dinheiro" : "Salvar esta sessão no histórico"}
-              className="px-6 py-3 text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm transition-all duration-300 shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
-            >
-              Encerrar e Salvar Jogo
-            </button>
-        </div>
-      </div>
-       {isAddPlayerModalOpen && (
+      )}
+       {isAddPlayerModalOpen && isLoggedIn && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-poker-dark flex justify-between items-center">

@@ -5,13 +5,16 @@ import Players from './components/Players';
 import Ranking from './components/Ranking';
 import SessionHistory from './components/SessionHistory';
 import AddHistoricGame from './components/AddHistoricGame';
+import Login from './components/Login';
 import type { Player, GamePlayer, Session } from './types';
 import { View } from './types';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc } from 'firebase/firestore';
-
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isVisitor, setIsVisitor] = useState(false);
   const [activeView, setActiveView] = useState<View>(View.Ranking);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gamePlayers, setGamePlayers] = useState<GamePlayer[]>([]);
@@ -21,10 +24,19 @@ const App: React.FC = () => {
 
   const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
+  
+  const isLoggedIn = !!user;
 
   useEffect(() => {
-    setIsLoading(true);
-
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) {
+        setIsVisitor(false); // Reset visitor state on logout
+      }
+      setIsLoading(false);
+    });
+    
+    // Listeners do Firestore
     const unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
       const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
       setPlayers(playersData);
@@ -45,10 +57,10 @@ const App: React.FC = () => {
         setGamePlayers([]);
         setCurrentGameName(null);
       }
-      setIsLoading(false);
     });
 
     return () => {
+      unsubscribeAuth();
       unsubPlayers();
       unsubSessions();
       unsubLiveGame();
@@ -57,16 +69,19 @@ const App: React.FC = () => {
 
 
   const handleAddPlayer = async (player: Omit<Player, 'id' | 'isActive'>) => {
+    if (!isLoggedIn) return;
     await addDoc(collection(db, 'players'), { ...player, isActive: true });
   };
 
   const handleUpdatePlayer = async (updatedPlayer: Player) => {
+    if (!isLoggedIn) return;
     const playerRef = doc(db, 'players', updatedPlayer.id);
     const { id, ...playerData } = updatedPlayer;
     await updateDoc(playerRef, playerData);
   };
 
   const handleDeletePlayer = async (playerId: string) => {
+    if (!isLoggedIn) return;
     const isPlayerInHistory = sessionHistory.some(session =>
       session.players.some(p => p.id === playerId)
     );
@@ -82,6 +97,7 @@ const App: React.FC = () => {
   };
 
   const handleTogglePlayerStatus = async (playerId: string) => {
+    if (!isLoggedIn) return;
     const player = players.find(p => p.id === playerId);
     if (player) {
       const playerRef = doc(db, 'players', playerId);
@@ -90,6 +106,7 @@ const App: React.FC = () => {
   };
 
   const handleStartGame = async (playerIds: string[]) => {
+    if (!isLoggedIn) return;
     const selectedPlayers = players.filter(p => playerIds.includes(p.id));
     const newGamePlayers = selectedPlayers.map(p => ({
       ...p,
@@ -117,6 +134,7 @@ const App: React.FC = () => {
   };
   
   const handleAddPlayerToLiveGame = async (playerId: string) => {
+    if (!isLoggedIn) return;
     const playerToAdd = players.find(p => p.id === playerId);
     if (playerToAdd) {
         const newGamePlayer: GamePlayer = {
@@ -133,6 +151,7 @@ const App: React.FC = () => {
   };
 
   const handleAddRebuy = async (playerId: string) => {
+    if (!isLoggedIn) return;
     const updatedPlayers = gamePlayers.map(p =>
       p.id === playerId
         ? {
@@ -146,6 +165,7 @@ const App: React.FC = () => {
   };
 
   const handleRemoveRebuy = async (playerId: string) => {
+    if (!isLoggedIn) return;
     const updatedPlayers = gamePlayers.map(p => {
       if (p.id === playerId && p.rebuys > 0) {
         return {
@@ -160,16 +180,18 @@ const App: React.FC = () => {
   };
 
   const handleUpdateFinalChips = async (playerId: string, chips: number) => {
+    if (!isLoggedIn) return;
     const updatedPlayers = gamePlayers.map(p => (p.id === playerId ? { ...p, finalChips: chips } : p));
     await updateDoc(doc(db, 'liveGame', 'current'), { players: updatedPlayers });
   };
 
   const handleUpdateGameName = async (newName: string) => {
+    if (!isLoggedIn) return;
     await updateDoc(doc(db, 'liveGame', 'current'), { gameName: newName });
   };
 
   const handleEndGame = async () => {
-    if (!currentGameName) return;
+    if (!isLoggedIn || !currentGameName) return;
     const gamePlayersWithPayment = gamePlayers.map(p => ({
         ...p,
         paid: (p.finalChips - p.totalInvested) === 0
@@ -190,6 +212,7 @@ const App: React.FC = () => {
   };
 
   const handleCancelGame = async () => {
+    if (!isLoggedIn) return;
     if (window.confirm("Tem certeza que deseja cancelar este jogo? Todo o progresso será perdido.")) {
       await deleteDoc(doc(db, 'liveGame', 'current'));
       setActiveView(View.Players);
@@ -197,6 +220,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveHistoricGame = async (session: Omit<Session, 'id'>) => {
+    if (!isLoggedIn) return;
     if (modalMode === 'edit' && sessionToEdit) {
         const sessionRef = doc(db, 'sessions', sessionToEdit.id);
         await updateDoc(sessionRef, session);
@@ -208,6 +232,7 @@ const App: React.FC = () => {
   };
 
   const handleOpenEditModal = (sessionId: string) => {
+    if (!isLoggedIn) return;
     const session = sessionHistory.find(s => s.id === sessionId);
     if (session) {
       setSessionToEdit(session);
@@ -216,12 +241,14 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSession = async (sessionId: string) => {
+    if (!isLoggedIn) return;
     if (window.confirm("Tem certeza que deseja excluir este jogo do histórico? Esta ação não pode ser desfeita.")) {
       await deleteDoc(doc(db, 'sessions', sessionId));
     }
   };
 
   const handleTogglePaymentStatus = async (sessionId: string, playerId: string) => {
+    if (!isLoggedIn) return;
     const session = sessionHistory.find(s => s.id === sessionId);
     if (session) {
         const updatedPlayers = session.players.map(player => {
@@ -236,19 +263,11 @@ const App: React.FC = () => {
   };
   
     const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-poker-gold"></div>
-          <p className="ml-4 text-white text-lg">Carregando dados...</p>
-        </div>
-      );
-    }
-    
     switch (activeView) {
       case View.LiveGame:
         return (
           <LiveGame
+            isLoggedIn={isLoggedIn}
             players={gamePlayers}
             allPlayers={players}
             gameName={currentGameName}
@@ -265,6 +284,7 @@ const App: React.FC = () => {
       case View.Players:
         return (
           <Players 
+            isLoggedIn={isLoggedIn}
             players={players} 
             onAddPlayer={handleAddPlayer} 
             onStartGame={handleStartGame} 
@@ -274,21 +294,34 @@ const App: React.FC = () => {
           />
         );
       case View.SessionHistory:
-        return <SessionHistory sessions={sessionHistory} onIncludeGame={() => setModalMode('add')} onEditGame={handleOpenEditModal} onDeleteGame={handleDeleteSession} onTogglePayment={handleTogglePaymentStatus}/>;
+        return <SessionHistory isLoggedIn={isLoggedIn} sessions={sessionHistory} onIncludeGame={() => setModalMode('add')} onEditGame={handleOpenEditModal} onDeleteGame={handleDeleteSession} onTogglePayment={handleTogglePaymentStatus}/>;
       case View.Ranking:
         return <Ranking gamePlayers={gamePlayers} sessionHistory={sessionHistory} players={players} gameName={currentGameName} />;
       default:
         return <Ranking gamePlayers={gamePlayers} sessionHistory={sessionHistory} players={players} gameName={currentGameName} />;
     }
   };
+  
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-poker-dark">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-poker-gold"></div>
+        <p className="ml-4 text-white text-lg">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!user && !isVisitor) {
+      return <Login onEnterAsVisitor={() => setIsVisitor(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-poker-dark">
-      <Header activeView={activeView} setActiveView={setActiveView} />
+      <Header isLoggedIn={isLoggedIn} activeView={activeView} setActiveView={setActiveView} />
       <main className="container mx-auto p-4 md:p-8">
         {renderContent()}
       </main>
-      {modalMode && (
+      {modalMode && isLoggedIn && (
         <AddHistoricGame
           players={players}
           onSave={handleSaveHistoricGame}

@@ -8,6 +8,7 @@ import WhatsAppIcon from './icons/WhatsAppIcon';
 
 
 interface SessionHistoryProps {
+  isLoggedIn: boolean;
   sessions: Session[];
   onIncludeGame: () => void;
   onEditGame: (sessionId: string) => void;
@@ -31,11 +32,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const PaymentToggle: React.FC<{ paid: boolean; onToggle: () => void }> = ({ paid, onToggle }) => {
+const PaymentToggle: React.FC<{ paid: boolean; onToggle: () => void; disabled: boolean }> = ({ paid, onToggle, disabled }) => {
   return (
     <button
       onClick={onToggle}
-      className={`relative inline-flex items-center h-6 rounded-full w-20 transition-colors duration-300 focus:outline-none`}
+      disabled={disabled}
+      className={`relative inline-flex items-center h-6 rounded-full w-20 transition-colors duration-300 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''}`}
     >
       <span className={`absolute left-0 w-1/2 h-full rounded-full transition-transform duration-300 ${paid ? 'transform translate-x-full bg-green-500' : 'bg-poker-gray'}`}></span>
       <span className="relative z-10 w-1/2 text-xs font-bold text-white">{paid ? '' : 'Pendente'}</span>
@@ -45,7 +47,7 @@ const PaymentToggle: React.FC<{ paid: boolean; onToggle: () => void }> = ({ paid
 };
 
 
-const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onIncludeGame, onEditGame, onDeleteGame, onTogglePayment }) => {
+const SessionHistory: React.FC<SessionHistoryProps> = ({ isLoggedIn, sessions, onIncludeGame, onEditGame, onDeleteGame, onTogglePayment }) => {
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   const toggleSession = (sessionId: string) => {
@@ -83,13 +85,15 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onIncludeGame
       <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-4">Nenhum Histórico de Sessões</h2>
         <p className="text-poker-gray">Nenhuma sessão de jogo foi concluída ainda. Adicione jogos antigos ou encerre um jogo ao vivo.</p>
-         <button
-          onClick={onIncludeGame}
-          className="mt-6 flex items-center mx-auto px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-green text-white shadow-md hover:bg-poker-green/80"
-        >
-          <span className="mr-2 h-5 w-5"><PlusIcon /></span>
-          Incluir Jogo Antigo
-        </button>
+         {isLoggedIn && (
+            <button
+            onClick={onIncludeGame}
+            className="mt-6 flex items-center mx-auto px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-green text-white shadow-md hover:bg-poker-green/80"
+          >
+            <span className="mr-2 h-5 w-5"><PlusIcon /></span>
+            Incluir Jogo Antigo
+          </button>
+         )}
       </div>
     );
   }
@@ -98,13 +102,15 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onIncludeGame
     <div className="bg-poker-light p-6 rounded-lg shadow-xl">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-white">Histórico de Jogos</h2>
-        <button
-          onClick={onIncludeGame}
-          className="flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-green text-white shadow-md hover:bg-poker-green/80"
-        >
-          <span className="mr-2 h-5 w-5"><PlusIcon /></span>
-          Incluir Jogo
-        </button>
+        {isLoggedIn && (
+            <button
+                onClick={onIncludeGame}
+                className="flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-all duration-300 bg-poker-green text-white shadow-md hover:bg-poker-green/80"
+            >
+                <span className="mr-2 h-5 w-5"><PlusIcon /></span>
+                Incluir Jogo
+            </button>
+        )}
       </div>
       <div className="space-y-4">
         {sessions.map(session => {
@@ -130,14 +136,16 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onIncludeGame
                       </svg>
                     </span>
                   </button>
-                  <div className="flex items-center space-x-1">
-                    <button onClick={(e) => { e.stopPropagation(); onEditGame(session.id); }} className="p-2 text-poker-gray hover:text-white rounded-full transition-colors duration-200">
-                        <EditIcon />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); onDeleteGame(session.id); }} className="p-2 text-poker-gray hover:text-red-500 rounded-full transition-colors duration-200">
-                        <TrashIcon />
-                    </button>
-                  </div>
+                  {isLoggedIn && (
+                    <div className="flex items-center space-x-1">
+                        <button onClick={(e) => { e.stopPropagation(); onEditGame(session.id); }} className="p-2 text-poker-gray hover:text-white rounded-full transition-colors duration-200">
+                            <EditIcon />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteGame(session.id); }} className="p-2 text-poker-gray hover:text-red-500 rounded-full transition-colors duration-200">
+                            <TrashIcon />
+                        </button>
+                    </div>
+                  )}
                </div>
               {expandedSessionId === session.id && (
                 <div className="p-4 border-t border-poker-light/50 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -165,6 +173,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onIncludeGame
                                   <PaymentToggle 
                                     paid={!!player.paid}
                                     onToggle={() => onTogglePayment(session.id, player.id)}
+                                    disabled={!isLoggedIn}
                                   />
                                 )}
                               </td>
