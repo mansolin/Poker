@@ -27,7 +27,7 @@ const Header: React.FC<HeaderProps> = ({ userRole, isVisitor, activeView, setAct
   ];
   
   const isUserAdmin = userRole === 'owner' || userRole === 'admin';
-  const isLoggedIn = userRole !== 'visitor';
+  const shouldShowLogout = userRole !== 'visitor' || isVisitor;
 
   return (
     <header className="bg-poker-light shadow-lg">
@@ -48,6 +48,7 @@ const Header: React.FC<HeaderProps> = ({ userRole, isVisitor, activeView, setAct
                       : 'bg-transparent text-poker-gray hover:bg-poker-dark hover:text-white'
                   }`}
                   title={item.view}
+                  disabled={userRole === 'pending'}
                 >
                   <span className="h-5 w-5">{item.icon}</span>
                   <span className="hidden md:inline ml-2">{item.view}</span>
@@ -67,11 +68,11 @@ const Header: React.FC<HeaderProps> = ({ userRole, isVisitor, activeView, setAct
                 </button>
               </li>
             )}
-            {(isLoggedIn || isVisitor) && (
+            {shouldShowLogout && (
                <li>
                 <button
                   onClick={onLogout}
-                  title={isLoggedIn ? "Sair da conta" : "Sair do modo Visitante"}
+                  title="Sair"
                   className="flex items-center px-2 py-2 text-sm md:text-base font-semibold rounded-md transition-all duration-300 bg-red-800 text-white hover:bg-red-700"
                 >
                   <span className="h-5 w-5"><LogoutIcon /></span>

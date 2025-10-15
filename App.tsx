@@ -14,7 +14,7 @@ import Toast from './components/Toast';
 import type { Player, GamePlayer, Session, ToastState, AppUser, UserRole, GameDefaults } from './types';
 import { View } from './types';
 import { db, auth } from './firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, getDocs, where } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 
 const App: React.FC = () => {
@@ -43,13 +43,34 @@ const App: React.FC = () => {
         setIsVisitorMode(false);
         const userDocRef = doc(db, 'users', currentUser.uid);
         const userDoc = await getDoc(userDocRef);
+
         if (userDoc.exists()) {
           const userData = userDoc.data() as AppUser;
           if (userData.role === 'pending') {
             setUserRole('pending');
-            alert('Sua conta está pendente de aprovação. Você tem acesso apenas para visualização.');
           } else {
             setUserRole(userData.role);
+          }
+        } else {
+          // User document doesn't exist, create it.
+          // Check if an owner already exists.
+          const usersRef = collection(db, 'users');
+          const ownerQuery = query(usersRef, where("role", "==", "owner"));
+          const ownerSnapshot = await getDocs(ownerQuery);
+
+          const newRole: UserRole = ownerSnapshot.empty ? 'owner' : 'pending';
+          
+          const newUserDocData: Omit<AppUser, 'uid'> = {
+              name: currentUser.displayName || currentUser.email || 'Novo Usuário',
+              email: currentUser.email || '',
+              role: newRole
+          };
+
+          await setDoc(userDocRef, newUserDocData);
+          setUserRole(newRole);
+
+          if (newRole === 'owner') {
+            showToast('Sua conta de Dono foi configurada!', 'success');
           }
         }
       } else {
@@ -58,15 +79,20 @@ const App: React.FC = () => {
       }
       setIsLoading(false);
     });
-    
-    // Admin-only listeners
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    let unsubAppUsers: () => void = () => {};
     if (userRole === 'owner') {
-        const unsubAppUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+        unsubAppUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
             setAppUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
         });
-        return () => unsubAppUsers();
+    } else {
+        setAppUsers([]);
     }
-  }, [user, userRole]);
+    return () => unsubAppUsers();
+  }, [userRole]);
 
   useEffect(() => {
     const unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
@@ -248,8 +274,8 @@ const App: React.FC = () => {
     setActiveView(View.PlayerProfile);
   };
   const handleLogout = () => {
-    if (user) signOut(auth);
-    if (isVisitorMode) setIsVisitorMode(false);
+    signOut(auth);
+    setIsVisitorMode(false);
   };
   const handleUpdateUserRole = async (uid: string, role: UserRole) => {
       if (userRole !== 'owner') return;
@@ -288,6 +314,19 @@ const App: React.FC = () => {
   }
   if (activeView === View.Register) {
       return <Register onSwitchToLogin={() => setActiveView(View.Ranking)} />;
+  }
+  if (userRole === 'pending') {
+      return (
+         <div className="min-h-screen bg-poker-dark">
+            <Header userRole={userRole} isVisitor={false} activeView={activeView} setActiveView={() => {}} onLogout={handleLogout} />
+            <main className="container mx-auto p-4 md:p-8 text-center">
+                <div className="bg-poker-light p-10 rounded-lg shadow-xl">
+                    <h2 className="text-2xl font-bold text-white mb-4">Acesso Pendente</h2>
+                    <p className="text-poker-gray">Sua conta foi criada e está aguardando aprovação do Dono do clube. <br />Por favor, aguarde para ter acesso às funcionalidades.</p>
+                </div>
+            </main>
+         </div>
+      );
   }
 
   return (
