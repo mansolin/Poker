@@ -5,7 +5,7 @@ import PlusIcon from './icons/PlusIcon';
 import TrashIcon from './icons/TrashIcon';
 import UserFormModal from './UserFormModal';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import SpinnerIcon from './icons/SpinnerIcon';
 
@@ -23,6 +23,8 @@ interface SettingsProps {
 const BannerImageManager: React.FC<{ showToast: SettingsProps['showToast'] }> = ({ showToast }) => {
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -43,27 +45,40 @@ const BannerImageManager: React.FC<{ showToast: SettingsProps['showToast'] }> = 
         fileInputRef.current?.click();
     };
 
-    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        setIsLoading(true);
-        try {
-            const storageRef = ref(storage, 'homepage/main-image');
-            await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(storageRef);
-            
-            await setDoc(doc(db, 'config', 'homepageImage'), { url: downloadURL });
+        setIsUploading(true);
+        setUploadProgress(0);
+        
+        const storageRef = ref(storage, 'homepage/main-image');
+        const uploadTask = uploadBytesResumable(storageRef, file);
 
-            showToast('Imagem atualizada com sucesso!', 'success');
-        } catch (error) {
-            console.error("Erro ao fazer upload da imagem:", error);
-            showToast('Falha ao atualizar a imagem.', 'error');
-        } finally {
-            setIsLoading(false);
-            // Clear the file input value to allow re-uploading the same file
-            if(fileInputRef.current) fileInputRef.current.value = "";
-        }
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(progress);
+            },
+            (error) => {
+                console.error("Erro ao fazer upload da imagem:", error);
+                showToast('Falha ao atualizar a logo.', 'error');
+                setIsUploading(false);
+                if(fileInputRef.current) fileInputRef.current.value = "";
+            },
+            () => {
+                getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
+                    await setDoc(doc(db, 'config', 'homepageImage'), { url: downloadURL });
+                    showToast('Logo atualizada com sucesso!', 'success');
+                }).catch((error) => {
+                    console.error("Error getting download URL:", error);
+                    showToast('Falha ao obter URL da logo.', 'error');
+                }).finally(() => {
+                    setIsUploading(false);
+                    if(fileInputRef.current) fileInputRef.current.value = "";
+                });
+            }
+        );
     };
 
     return (
@@ -75,24 +90,31 @@ const BannerImageManager: React.FC<{ showToast: SettingsProps['showToast'] }> = 
                 onChange={handleImageUpload}
                 className="hidden"
             />
-            <h3 className="text-lg font-semibold text-white mb-2">Imagem da Tela de Login</h3>
-            <p className="text-sm text-poker-gray mb-4">Altere a imagem de destaque exibida na tela de login.</p>
+            <h3 className="text-lg font-semibold text-white mb-2">Logo</h3>
+            <p className="text-sm text-poker-gray mb-4">Altere a logo exibida na tela de login.</p>
             <div className="flex items-center space-x-4">
                 <div className="w-48 h-28 bg-poker-light rounded flex items-center justify-center overflow-hidden">
                     {isLoading ? <SpinnerIcon /> : (
                         imageUrl ? 
-                        <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" /> : 
-                        <span className="text-poker-gray text-sm">Sem imagem</span>
+                        <img src={imageUrl} alt="Preview da Logo" className="w-full h-full object-cover" /> : 
+                        <span className="text-poker-gray text-sm">Sem logo</span>
                     )}
                 </div>
                 <button 
                     onClick={handleFileSelect} 
-                    disabled={isLoading}
+                    disabled={isUploading}
                     className="px-4 py-2 text-sm font-semibold text-white bg-poker-green hover:bg-poker-green/80 rounded-md disabled:opacity-50"
                 >
-                    {isLoading ? 'Enviando...' : 'Alterar Imagem'}
+                    {isUploading ? `Enviando...` : 'Alterar Logo'}
                 </button>
             </div>
+            {isUploading && (
+                <div className="mt-4">
+                    <div className="w-full bg-poker-light rounded-full h-2.5">
+                        <div className="bg-poker-green h-2.5 rounded-full transition-width duration-150" style={{ width: `${uploadProgress}%` }}></div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
