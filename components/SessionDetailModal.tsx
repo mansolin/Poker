@@ -66,8 +66,8 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                     </div>
                 </div>
 
-                <div className="p-4 flex-grow overflow-y-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                    <div className="overflow-x-auto">
+                <div className="p-4 flex-grow overflow-y-auto flex flex-col lg:flex-row gap-8">
+                    <div className="lg:w-1/2 overflow-x-auto">
                         <table className="min-w-full divide-y divide-poker-dark">
                         <thead><tr><th className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase">Jogador</th><th className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase">Resultado</th><th className="px-4 py-3 text-left text-xs font-medium text-poker-gray uppercase">Pago?</th></tr></thead>
                         <tbody className="divide-y divide-poker-dark">
@@ -77,10 +77,19 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                         </tbody>
                         </table>
                     </div>
-                    <div className="flex flex-col gap-6">
-                        <div className="w-full h-80 sm:h-96">
-                        <ResponsiveContainer width="100%" height="100%"><BarChart data={rankedPlayers} margin={{ top: 25, right: 10, left: -25, bottom: 50 }}><CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} /><XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-40} textAnchor="end" /><YAxis stroke="#A0AEC0" fontSize={12} tickFormatter={(v) => `R$${v}`} /><Tooltip content={<CustomTooltip />} /><Bar dataKey="profit"><LabelList dataKey="profit" position="top" formatter={(v: number) => v.toLocaleString('pt-BR')} fontSize={10} className="fill-poker-gray" />{rankedPlayers.map((entry, i) => (<Cell key={`c-${i}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />))}</Bar></BarChart></ResponsiveContainer>
-                        </div>
+                    <div className="lg:w-1/2 w-full h-80 sm:h-96">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={rankedPlayers} margin={{ top: 25, right: 10, left: -25, bottom: 50 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
+                            <XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-40} textAnchor="end" />
+                            <YAxis stroke="#A0AEC0" fontSize={12} tickFormatter={(v) => `R$${v}`} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="profit">
+                              <LabelList dataKey="profit" position="top" formatter={(v: number) => v.toLocaleString('pt-BR')} fontSize={10} className="fill-poker-gray" />
+                              {rankedPlayers.map((entry, i) => (<Cell key={`c-${i}`} fill={entry.profit >= 0 ? '#22c55e' : '#ef4444'} />))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 
