@@ -30,8 +30,7 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
         });
 
         if (isEditMode && sessionToEdit) {
-            const date = sessionToEdit.date.toDate();
-            const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+            const formattedDate = sessionToEdit.date.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
             setGameName(formattedDate);
             
             const initialParticipants = sortedPlayers.map(p => {
@@ -68,9 +67,12 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let value = e.target.value.replace(/\D/g, '');
-      if (value.length > 8) value = value.slice(0, 8);
-      if (value.length > 2) value = `${value.slice(0, 2)}/${value.slice(2)}`;
-      if (value.length > 5) value = `${value.slice(0, 5)}/${value.slice(5)}`;
+      if (value.length > 6) value = value.slice(0, 6);
+      if (value.length > 4) {
+        value = `${value.slice(0, 2)}/${value.slice(2, 4)}/${value.slice(4)}`;
+      } else if (value.length > 2) {
+        value = `${value.slice(0, 2)}/${value.slice(2)}`;
+      }
       setGameName(value);
     };
     
@@ -90,15 +92,16 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
     const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => event.target.select();
     
     const handleSave = () => {
-        if (!/^\d{2}\/\d{2}\/\d{4}$/.test(gameName)) {
-            alert("Por favor, preencha uma data válida no formato DD/MM/AAAA.");
+        if (!/^\d{2}\/\d{2}\/\d{2}$/.test(gameName)) {
+            alert("Por favor, preencha uma data válida no formato DD/MM/AA.");
             return;
         }
 
         const dateParts = gameName.split('/');
-        const gameDate = new Date(Number(dateParts[2]), Number(dateParts[1]) - 1, Number(dateParts[0]));
+        const year = 2000 + parseInt(dateParts[2], 10);
+        const gameDate = new Date(year, Number(dateParts[1]) - 1, Number(dateParts[0]));
         
-        if (isNaN(gameDate.getTime())) {
+        if (isNaN(gameDate.getTime()) || dateParts[2].length !== 2) {
           alert("A data inserida é inválida.");
           return;
         }
@@ -146,7 +149,7 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
                                 value={gameName}
                                 onChange={handleDateChange}
                                 className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg focus:ring-poker-gold focus:border-poker-gold block w-full p-2.5"
-                                placeholder="DD/MM/AAAA"
+                                placeholder="DD/MM/AA"
                                 required
                             />
                         </div>
