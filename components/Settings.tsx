@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { generateAndUploadMockData } from '../mock-data';
 import type { AppUser, UserRole, GameDefaults } from '../types';
 import PlusIcon from './icons/PlusIcon';
 import TrashIcon from './icons/TrashIcon';
 import UserFormModal from './UserFormModal';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../firebase';
+import SpinnerIcon from './icons/SpinnerIcon';
 
 interface SettingsProps {
     isUserOwner: boolean;
@@ -13,9 +17,88 @@ interface SettingsProps {
     gameDefaults: GameDefaults;
     onAddUser: (userData: Omit<AppUser, 'uid'>, password: string) => Promise<boolean>;
     onDeleteUser: (uid: string) => void;
+    showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUserRole, onSaveDefaults, gameDefaults, onAddUser, onDeleteUser }) => {
+const BannerImageManager: React.FC<{ showToast: SettingsProps['showToast'] }> = ({ showToast }) => {
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const imageConfigRef = doc(db, 'config', 'homepageImage');
+        const unsubscribe = onSnapshot(imageConfigRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setImageUrl(docSnap.data().url);
+            } else {
+                setImageUrl(null);
+            }
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const handleFileSelect = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsLoading(true);
+        try {
+            const storageRef = ref(storage, 'homepage/main-image');
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            
+            await setDoc(doc(db, 'config', 'homepageImage'), { url: downloadURL });
+
+            showToast('Imagem atualizada com sucesso!', 'success');
+        } catch (error) {
+            console.error("Erro ao fazer upload da imagem:", error);
+            showToast('Falha ao atualizar a imagem.', 'error');
+        } finally {
+            setIsLoading(false);
+            // Clear the file input value to allow re-uploading the same file
+            if(fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
+    return (
+        <div className="bg-poker-dark p-4 rounded-lg">
+             <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                className="hidden"
+            />
+            <h3 className="text-lg font-semibold text-white mb-2">Imagem da Tela de Login</h3>
+            <p className="text-sm text-poker-gray mb-4">Altere a imagem de destaque exibida na tela de login.</p>
+            <div className="flex items-center space-x-4">
+                <div className="w-48 h-28 bg-poker-light rounded flex items-center justify-center overflow-hidden">
+                    {isLoading ? <SpinnerIcon /> : (
+                        imageUrl ? 
+                        <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" /> : 
+                        <span className="text-poker-gray text-sm">Sem imagem</span>
+                    )}
+                </div>
+                <button 
+                    onClick={handleFileSelect} 
+                    disabled={isLoading}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-poker-green hover:bg-poker-green/80 rounded-md disabled:opacity-50"
+                >
+                    {isLoading ? 'Enviando...' : 'Alterar Imagem'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
+const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUserRole, onSaveDefaults, gameDefaults, onAddUser, onDeleteUser, showToast }) => {
     const [isGeneratingData, setIsGeneratingData] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [buyIn, setBuyIn] = useState(gameDefaults.buyIn);
@@ -69,6 +152,8 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
                 <h2 className="text-xl md:text-2xl font-bold text-white mb-6">Configurações</h2>
                 
                 <div className="space-y-8">
+                    {isUserOwner && <BannerImageManager showToast={showToast} />}
+
                     <div className="bg-poker-dark p-4 rounded-lg">
                         <h3 className="text-lg font-semibold text-white mb-2">Valores Padrão</h3>
                         <p className="text-sm text-poker-gray mb-4">Defina valores padrão para buy-in e rebuys.</p>
@@ -112,10 +197,10 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
                                                 className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2"
                                                 disabled={user.role === 'owner'}
                                             >
+                                                <option value="owner">Dono</option>
                                                 <option value="admin">Admin</option>
                                                 <option value="visitor">Visitante</option>
                                                 <option value="pending">Pendente</option>
-                                                {user.role === 'owner' && <option value="owner">Dono</option>}
                                             </select>
                                             {user.role !== 'owner' && (
                                                 <button onClick={() => onDeleteUser(user.uid)} className="p-2 text-poker-gray hover:text-red-500" title="Excluir Usuário">

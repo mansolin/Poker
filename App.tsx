@@ -363,11 +363,11 @@ const App: React.FC = () => {
       case View.LiveGame: return <LiveGame isUserAdmin={isUserAdmin} players={gamePlayers} allPlayers={players} gameName={currentGameName} onAddRebuy={handleAddRebuy} onRemoveRebuy={handleRemoveRebuy} onUpdateFinalChips={handleUpdateFinalChips} onUpdateGameName={handleUpdateGameName} onEndGame={handleEndGame} onCancelGame={handleCancelGame} onGoToPlayers={() => setActiveView(View.Players)} onAddPlayerToGame={handleAddPlayerToLiveGame} onViewProfile={handleViewProfile} gameDefaults={gameDefaults} />;
       case View.Players: return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onStartGame={handleStartGame} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
       case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onIncludeGame={() => setModalMode('add')} onViewSession={handleViewSession} />;
-      case View.Ranking: return <Ranking isUserOwner={userRole === 'owner'} showToast={showToast} sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
+      case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
       case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Ranking)} />;
       case View.Cashier: return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettlePlayerDebts} onViewProfile={handleViewProfile} />;
-      case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} />;
-      default: return <Ranking isUserOwner={userRole === 'owner'} showToast={showToast} sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
+      case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} showToast={showToast} />;
+      default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
     }
   };
   

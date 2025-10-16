@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
     signInWithEmailAndPassword, 
@@ -11,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
-import PokerClubLogo from './PokerClubLogo';
+import LoginImageDisplay from './HomepageImageManager';
 import EyeIcon from './icons/EyeIcon';
 import EyeSlashIcon from './icons/EyeSlashIcon';
 import GoogleIcon from './icons/GoogleIcon';
@@ -212,7 +211,7 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-poker-dark p-4">
             <div className="w-full max-w-md">
-                <div className="flex justify-center mb-6"><PokerClubLogo /></div>
+                <LoginImageDisplay />
                 <div className="bg-poker-light p-8 rounded-lg shadow-2xl">
                     {view !== 'registerSuccess' && (
                         <div className="text-center mb-6">
