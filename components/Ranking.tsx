@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect } from 'react';
 import type { Session } from '../types';
 import PlayerAvatar from './PlayerAvatar';
 import StatCard from './StatCard';
-import TrendingUpIcon from './icons/TrendingUpIcon';
 import HandIcon from './icons/HandIcon';
 import CrownIcon from './icons/CrownIcon';
 import MedalIcon from './icons/MedalIcon';
@@ -10,24 +9,26 @@ import MedalIcon from './icons/MedalIcon';
 interface RankingProps {
   sessionHistory: Session[];
   onViewProfile: (playerId: string) => void;
+  onViewSession: (sessionId: string) => void;
 }
 
-const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile }) => {
+const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile, onViewSession }) => {
   const [rankingView, setRankingView] = useState<'annual' | 'lastGame'>('annual');
 
   const highlightStats = useMemo(() => {
     if (sessionHistory.length === 0) {
-      return { totalPot: 0, biggestWin: null, biggestWinner: null, kingOfConsistency: null };
+      return { biggestWin: null, biggestWinner: null, kingOfConsistency: null };
     }
 
-    const totalPot = sessionHistory.reduce((sum, session) => sum + session.players.reduce((pSum, p) => pSum + p.totalInvested, 0), 0);
-
-    let biggestWin = { name: '', value: 0 };
+    let biggestWin: { name: string, value: number, playerId: string, sessionId: string, date: string } | null = null;
     sessionHistory.forEach(session => {
+      const sessionDate = session.date.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
       session.players.forEach(p => {
         const profit = p.finalChips - p.totalInvested;
-        if (profit > biggestWin.value) {
-          biggestWin = { name: p.name, value: profit };
+        if (!biggestWin || profit > biggestWin.value) {
+            if (profit > 0) { // Only count positive profits as wins
+                biggestWin = { name: p.name, value: profit, playerId: p.id, sessionId: session.id, date: sessionDate };
+            }
         }
       });
     });
@@ -45,13 +46,16 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile }) => {
       });
     });
 
-    const sortedByProfit = Array.from(playerProfits.values()).sort((a, b) => b.total - a.total);
-    const biggestWinner = sortedByProfit.length > 0 ? { name: sortedByProfit[0].name, value: sortedByProfit[0].total } : null;
+    const sortedByProfit = Array.from(playerProfits.entries()).sort(([, a], [, b]) => b.total - a.total);
+    const biggestWinner = sortedByProfit.length > 0 && sortedByProfit[0][1].total > 0 ? { id: sortedByProfit[0][0], name: sortedByProfit[0][1].name, value: sortedByProfit[0][1].total } : null;
+    
+    const sortedByWins = Array.from(playerProfits.entries()).sort(([, a], [, b]) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        return b.total - a.total; // Tie-breaker
+    });
+    const kingOfConsistency = sortedByWins.length > 0 && sortedByWins[0][1].wins > 0 ? { id: sortedByWins[0][0], name: sortedByWins[0][1].name, value: sortedByWins[0][1].wins } : null;
 
-    const sortedByWins = Array.from(playerProfits.values()).sort((a, b) => b.wins - a.wins);
-    const kingOfConsistency = sortedByWins.length > 0 ? { name: sortedByWins[0].name, value: sortedByWins[0].wins } : null;
-
-    return { totalPot, biggestWin, biggestWinner, kingOfConsistency };
+    return { biggestWin, biggestWinner, kingOfConsistency };
   }, [sessionHistory]);
 
   const availableYears = useMemo(() => {
@@ -129,27 +133,48 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile }) => {
 
   return (
     <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard icon={<TrendingUpIcon />} title="Total Jogado" value={`R$ ${highlightStats.totalPot.toLocaleString('pt-BR')}`} />
-            <StatCard icon={<HandIcon />} title="Maior Prêmio" value={`R$ ${highlightStats.biggestWin?.value.toLocaleString('pt-BR')}`} subtitle={highlightStats.biggestWin?.name} />
-            <StatCard icon={<CrownIcon />} title="Maior Ganhador" value={`R$ ${highlightStats.biggestWinner?.value.toLocaleString('pt-BR')}`} subtitle={highlightStats.biggestWinner?.name} />
-            <StatCard icon={<MedalIcon />} title="Rei da Constância" value={`${highlightStats.kingOfConsistency?.value} vitórias`} subtitle={highlightStats.kingOfConsistency?.name} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard 
+                icon={<HandIcon />} 
+                title="Maior Prêmio/Jogo" 
+                value={highlightStats.biggestWin ? `R$ ${highlightStats.biggestWin.value.toLocaleString('pt-BR')}` : 'N/A'}
+                subtitle={highlightStats.biggestWin?.name}
+                onValueClick={highlightStats.biggestWin ? () => onViewSession(highlightStats.biggestWin!.sessionId) : undefined}
+                onSubtitleClick={highlightStats.biggestWin ? () => onViewProfile(highlightStats.biggestWin!.playerId) : undefined}
+                detail={highlightStats.biggestWin?.date}
+            />
+            <StatCard 
+                icon={<CrownIcon />} 
+                title="Maior Ganhador (Acumulado)" 
+                value={highlightStats.biggestWinner ? `R$ ${highlightStats.biggestWinner.value.toLocaleString('pt-BR')}` : 'N/A'}
+                subtitle={highlightStats.biggestWinner?.name}
+                onSubtitleClick={highlightStats.biggestWinner ? () => onViewProfile(highlightStats.biggestWinner!.id) : undefined}
+            />
+            <StatCard 
+                icon={<MedalIcon />} 
+                title="Rei da Constância" 
+                value={highlightStats.kingOfConsistency ? `${highlightStats.kingOfConsistency.value} vitórias` : 'N/A'}
+                subtitle={highlightStats.kingOfConsistency?.name}
+                onSubtitleClick={highlightStats.kingOfConsistency ? () => onViewProfile(highlightStats.kingOfConsistency!.id) : undefined}
+            />
         </div>
         <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <div className="flex items-center bg-poker-dark p-1 rounded-lg">
-            <button onClick={() => setRankingView('lastGame')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${rankingView === 'lastGame' ? 'bg-poker-green text-white' : 'text-poker-gray'}`}>
-                Último Jogo
-            </button>
-            <button onClick={() => setRankingView('annual')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${rankingView === 'annual' ? 'bg-poker-green text-white' : 'text-poker-gray'}`}>
-                Anual
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-poker-dark p-1 rounded-lg">
+                <button onClick={() => setRankingView('lastGame')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${rankingView === 'lastGame' ? 'bg-poker-green text-white' : 'text-poker-gray'}`}>
+                    Último Jogo
+                </button>
+                <button onClick={() => setRankingView('annual')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${rankingView === 'annual' ? 'bg-poker-green text-white' : 'text-poker-gray'}`}>
+                    Anual
+                </button>
+              </div>
+              {rankingView === 'annual' && availableYears.length > 0 && (
+                <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2.5">
+                    {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+              )}
             </div>
-            {rankingView === 'annual' && availableYears.length > 0 && (
-            <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2">
-                {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
-            </select>
-            )}
         </div>
 
         <h2 className="text-xl md:text-2xl font-bold text-white mb-4">{title}</h2>

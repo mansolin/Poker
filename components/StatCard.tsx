@@ -5,20 +5,41 @@ interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string | null;
+  onValueClick?: () => void;
+  onSubtitleClick?: () => void;
+  detail?: string;
+  valueClassName?: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ icon, title, value, subtitle }) => {
+const StatCard: React.FC<StatCardProps> = ({ icon, title, value, subtitle, onValueClick, onSubtitleClick, detail, valueClassName }) => {
   return (
-    <div className="bg-poker-dark p-3 rounded-lg shadow-md flex flex-col justify-between h-28">
+    <div className="bg-gradient-to-br from-poker-light to-poker-dark p-4 rounded-lg shadow-lg flex flex-col justify-between h-36 border-t-4 border-poker-gold">
       <div>
-        <div className="flex items-center text-poker-gray mb-1">
+        <div className="flex items-center text-poker-gray mb-2">
           <span className="h-4 w-4 mr-2">{icon}</span>
-          <h4 className="text-xs font-semibold uppercase tracking-wider">{title}</h4>
+          <h4 className="text-sm font-semibold uppercase tracking-wider">{title}</h4>
         </div>
-        <p className="text-xl font-bold text-poker-gold truncate" title={String(value)}>{value}</p>
+        <button 
+          onClick={onValueClick} 
+          disabled={!onValueClick}
+          className={`w-full text-left font-bold text-poker-gold truncate ${onValueClick ? 'hover:opacity-80' : 'cursor-default'} ${valueClassName || 'text-2xl'}`} 
+          title={String(value)}
+        >
+          {value}
+        </button>
       </div>
       {subtitle && (
-        <p className="text-sm text-white truncate" title={subtitle}>{subtitle}</p>
+         <div className="flex justify-between items-end">
+            <button 
+                onClick={onSubtitleClick}
+                disabled={!onSubtitleClick}
+                className={`text-base font-semibold text-white truncate text-left ${onSubtitleClick ? 'hover:underline' : 'cursor-default'}`} 
+                title={subtitle}
+            >
+                {subtitle}
+            </button>
+            {detail && <span className="text-xs text-poker-gray flex-shrink-0 ml-2">{detail}</span>}
+         </div>
       )}
     </div>
   );

@@ -1,35 +1,30 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Session, Player } from '../types';
 import PlusIcon from './icons/PlusIcon';
 import LayoutGridIcon from './icons/LayoutGridIcon';
 import ListIcon from './icons/ListIcon';
 import GameCard from './GameCard';
-import SessionDetailModal from './SessionDetailModal';
+import TrendingUpIcon from './icons/TrendingUpIcon';
 
 interface SessionHistoryProps {
   isUserAdmin: boolean;
   sessions: Session[];
   players: Player[];
   onIncludeGame: () => void;
-  onEditGame: (sessionId: string) => void;
-  onDeleteGame: (sessionId: string) => void;
-  onTogglePayment: (sessionId: string, playerId: string) => void;
-  onViewProfile: (playerId: string) => void;
+  onViewSession: (sessionId: string) => void;
 }
 
 const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
-  const { isUserAdmin, sessions, players, onIncludeGame } = props;
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const { isUserAdmin, sessions, players, onIncludeGame, onViewSession } = props;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPlayerId, setFilterPlayerId] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  useEffect(() => {
-    if (selectedSession) {
-      const updatedSession = sessions.find(s => s.id === selectedSession.id);
-      setSelectedSession(updatedSession || null);
-    }
-  }, [sessions, selectedSession]);
+  const totalPot = useMemo(() => {
+    return sessions.reduce((total, session) => {
+      return total + session.players.reduce((sessionTotal, p) => sessionTotal + p.totalInvested, 0);
+    }, 0);
+  }, [sessions]);
 
   const filteredSessions = useMemo(() => {
     return sessions.filter(session => {
@@ -51,8 +46,15 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
   return (
     <>
       <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <h2 className="text-xl md:text-2xl font-bold text-white">Histórico de Jogos</h2>
+          <div className="bg-poker-dark p-3 rounded-lg text-center w-full sm:w-auto">
+              <div className="flex items-center justify-center text-poker-gray text-xs mb-1">
+                  <span className="h-4 w-4 mr-2"><TrendingUpIcon /></span>
+                  <h3 className="font-semibold uppercase tracking-wider">Total Jogado</h3>
+              </div>
+              <p className="text-4xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
+          </div>
         </div>
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -77,13 +79,13 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
             viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredSessions.map(session => (
-                  <GameCard key={session.id} session={session} onClick={() => setSelectedSession(session)} />
+                  <GameCard key={session.id} session={session} onClick={() => onViewSession(session.id)} />
                 ))}
               </div>
             ) : (
               <div className="space-y-2">
                 {filteredSessions.map(session => (
-                  <div key={session.id} onClick={() => setSelectedSession(session)} className="flex justify-between items-center bg-poker-dark p-3 rounded-lg cursor-pointer hover:bg-poker-dark/70">
+                  <div key={session.id} onClick={() => onViewSession(session.id)} className="flex justify-between items-center bg-poker-dark p-3 rounded-lg cursor-pointer hover:bg-poker-dark/70">
                     <span className="font-semibold text-white">{session.name}</span>
                     <span className="text-sm text-poker-gold">R$ {session.players.reduce((sum, p) => sum + p.totalInvested, 0).toLocaleString('pt-BR')}</span>
                   </div>
@@ -95,13 +97,6 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
           )}
         </div>
       </div>
-      {selectedSession && (
-        <SessionDetailModal
-          session={selectedSession}
-          onClose={() => setSelectedSession(null)}
-          {...props}
-        />
-      )}
     </>
   );
 };

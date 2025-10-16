@@ -16,6 +16,7 @@ import { View } from './types';
 import { db, auth } from './firebase';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, getDocs, where } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import SessionDetailModal from './components/SessionDetailModal';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -34,6 +35,7 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<ToastState>({ message: '', type: 'success', visible: false });
   const [appUsers, setAppUsers] = useState<AppUser[]>([]);
   const [gameDefaults, setGameDefaults] = useState<GameDefaults>({ buyIn: 50, rebuy: 50 });
+  const [viewingSession, setViewingSession] = useState<Session | null>(null);
 
   const isUserAdmin = userRole === 'owner' || userRole === 'admin';
 
@@ -110,7 +112,13 @@ const App: React.FC = () => {
     });
     const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
     const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
-      setSessionHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session)));
+      const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
+      setSessionHistory(sessions);
+      // Update viewing session if it's currently open
+      if (viewingSession) {
+          const updatedSession = sessions.find(s => s.id === viewingSession.id);
+          setViewingSession(updatedSession || null);
+      }
     });
     const unsubLiveGame = onSnapshot(doc(db, 'liveGame', 'current'), (snapshot) => {
       if (snapshot.exists()) {
@@ -128,7 +136,7 @@ const App: React.FC = () => {
         }
     });
     return () => { unsubPlayers(); unsubSessions(); unsubLiveGame(); unsubConfig(); };
-  }, []);
+  }, [viewingSession]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type, visible: true });
@@ -205,7 +213,7 @@ const App: React.FC = () => {
     if (!isUserAdmin) return;
     await updateDoc(doc(db, 'liveGame', 'current'), { gameName: newName });
   };
-  const handleEndGame = async () => {
+  const handleEndGame = async (): Promise<void> => {
     if (!isUserAdmin || !currentGameName) return;
     const gamePlayersWithPayment = gamePlayers.map(p => ({ ...p, paid: (p.finalChips - p.totalInvested) >= 0 }));
     try {
@@ -213,7 +221,10 @@ const App: React.FC = () => {
       await deleteDoc(doc(db, 'liveGame', 'current'));
       showToast('Jogo salvo no histórico com sucesso!');
       setActiveView(View.SessionHistory);
-    } catch (e) { showToast('Erro ao salvar o jogo.', 'error'); }
+    } catch (e) { 
+      showToast('Erro ao salvar o jogo.', 'error');
+      throw e; // Propagate error for loading state handling
+    }
   };
   const handleCancelGame = async () => {
     if (!isUserAdmin) return;
@@ -238,7 +249,10 @@ const App: React.FC = () => {
   const handleOpenEditModal = (sessionId: string) => {
     if (!isUserAdmin) return;
     const session = sessionHistory.find(s => s.id === sessionId);
-    if (session) { setSessionToEdit(session); setModalMode('edit'); }
+    if (session) { 
+      setSessionToEdit(session);
+      setModalMode('edit');
+    }
   };
   const handleDeleteSession = async (sessionId: string) => {
     if (!isUserAdmin) return;
@@ -246,6 +260,7 @@ const App: React.FC = () => {
       try {
         await deleteDoc(doc(db, 'sessions', sessionId));
         showToast('Jogo excluído do histórico.', 'success');
+        setViewingSession(null); // Close modal if it's open for this session
       } catch (e) { showToast('Erro ao excluir jogo.', 'error'); }
     }
   };
@@ -280,6 +295,7 @@ const App: React.FC = () => {
   const handleViewProfile = (playerId: string) => {
     setViewingPlayerId(playerId);
     setActiveView(View.PlayerProfile);
+    setViewingSession(null); // Close session modal when navigating away
   };
   const handleLogout = () => {
     signOut(auth);
@@ -303,17 +319,8 @@ const App: React.FC = () => {
   const handleAddUser = async (userData: Omit<AppUser, 'uid'>, password: string): Promise<boolean> => {
       if (userRole !== 'owner') return false;
       try {
-          // Firebase auth doesn't let us create users with password from the client-side directly
-          // without signing them in. This is a common workaround for admin panels.
-          // For a production app, this should be a backend function.
           const tempUserCredential = await createUserWithEmailAndPassword(auth, userData.email, password);
           await setDoc(doc(db, 'users', tempUserCredential.user.uid), { name: userData.name, email: userData.email, role: userData.role });
-
-          // Now, re-authenticate the original admin user
-          if (auth.currentUser && user) {
-            // This part is tricky on client-side and might require re-login.
-            // For simplicity, we show a success message.
-          }
           showToast('Usuário criado com sucesso!', 'success');
           return true;
       } catch (e: any) {
@@ -328,12 +335,9 @@ const App: React.FC = () => {
 
   const handleDeleteUser = async (uid: string) => {
       if (userRole !== 'owner') return;
-      const confirmationMessage = "Tem certeza que deseja excluir este usuário?\n\nEsta ação remove os dados do usuário do app (Firestore), mas NÃO exclui a conta de login (Firebase Auth).\n\nEsta ação é irreversível.";
+      const confirmationMessage = "Tem certeza que deseja excluir este usuário?\n\nEsta ação remove os dados do usuário do app (Firestore), mas NÃO exclui a conta de login (Firebase Auth).\n\nPara exclusão completa, remova a conta manualmente no console do Firebase.";
       if (window.confirm(confirmationMessage)) {
           try {
-              // Note: Deleting a user from Firebase Auth requires admin privileges,
-              // typically done via a backend (Cloud Function).
-              // Here we only delete the Firestore document.
               await deleteDoc(doc(db, 'users', uid));
               showToast('Usuário removido do banco de dados.');
           } catch {
@@ -342,17 +346,27 @@ const App: React.FC = () => {
       }
   };
 
+  const handleViewSession = (sessionId: string) => {
+    const session = sessionHistory.find(s => s.id === sessionId);
+    if (session) {
+      setViewingSession(session);
+    }
+  };
+
+  const handleCloseSessionModal = () => {
+    setViewingSession(null);
+  };
 
   const renderContent = () => {
     switch (activeView) {
       case View.LiveGame: return <LiveGame isUserAdmin={isUserAdmin} players={gamePlayers} allPlayers={players} gameName={currentGameName} onAddRebuy={handleAddRebuy} onRemoveRebuy={handleRemoveRebuy} onUpdateFinalChips={handleUpdateFinalChips} onUpdateGameName={handleUpdateGameName} onEndGame={handleEndGame} onCancelGame={handleCancelGame} onGoToPlayers={() => setActiveView(View.Players)} onAddPlayerToGame={handleAddPlayerToLiveGame} onViewProfile={handleViewProfile} gameDefaults={gameDefaults} />;
       case View.Players: return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onStartGame={handleStartGame} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
-      case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onIncludeGame={() => setModalMode('add')} onEditGame={handleOpenEditModal} onDeleteGame={handleDeleteSession} onTogglePayment={handleTogglePaymentStatus} onViewProfile={handleViewProfile}/>;
-      case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} />;
+      case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onIncludeGame={() => setModalMode('add')} onViewSession={handleViewSession} />;
+      case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
       case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Ranking)} />;
       case View.Cashier: return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettlePlayerDebts} onViewProfile={handleViewProfile} />;
       case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} />;
-      default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} />;
+      default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
     }
   };
   
@@ -387,6 +401,17 @@ const App: React.FC = () => {
       </main>
       {modalMode && isUserAdmin && (
         <AddHistoricGame players={players} onSave={handleSaveHistoricGame} onClose={() => { setModalMode(null); setSessionToEdit(null); }} sessionToEdit={sessionToEdit} />
+      )}
+      {viewingSession && (
+        <SessionDetailModal
+          isUserAdmin={isUserAdmin}
+          session={viewingSession}
+          onClose={handleCloseSessionModal}
+          onEditGame={handleOpenEditModal}
+          onDeleteGame={handleDeleteSession}
+          onTogglePayment={handleTogglePaymentStatus}
+          onViewProfile={handleViewProfile}
+        />
       )}
       <Toast message={toast.message} type={toast.type} visible={toast.visible} />
       <style>{`.animate-fade-in { animation: fadeIn 0.5s ease-in-out; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
