@@ -6,7 +6,7 @@ import TrophyIcon from './icons/TrophyIcon';
 import HistoryIcon from './icons/HistoryIcon';
 import CashierIcon from './icons/CashierIcon';
 import SettingsIcon from './icons/SettingsIcon';
-import PokerClubLogo from './PokerClubLogo';
+import SpadeTreeLogo from './SpadeTreeLogo';
 import LogoutIcon from './icons/LogoutIcon';
 
 interface HeaderProps {
@@ -42,8 +42,7 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, isVisitor, activeVi
       <div className="container mx-auto px-2 sm:px-4 md:px-8 flex items-center justify-between h-16">
         <div className="flex items-center h-full">
             <div className="flex items-center space-x-2 sm:space-x-4 pr-4 sm:pr-6 border-r border-poker-gray/20">
-                <PokerClubLogo className="h-12"/>
-                <span className="hidden sm:inline text-poker-gray text-sm italic">by Mansolin</span>
+                <SpadeTreeLogo className="h-12 w-12"/>
             </div>
         </div>
 
