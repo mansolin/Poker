@@ -1,5 +1,5 @@
 {
   "name": "Poker_projeto",
-  "description": "A web application to manage poker games with friends. It includes features for live game tracking, player management, and performance rankings with charts.",
+  "description": "Uma aplicação web para gerenciar jogos de poker com amigos. Inclui funcionalidades para acompanhamento de jogos ao vivo, gerenciamento de jogadores e rankings de desempenho com gráficos.",
   "requestFramePermissions": []
 }

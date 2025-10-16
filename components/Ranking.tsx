@@ -5,14 +5,17 @@ import StatCard from './StatCard';
 import HandIcon from './icons/HandIcon';
 import CrownIcon from './icons/CrownIcon';
 import MedalIcon from './icons/MedalIcon';
+import HomepageImageManager from './HomepageImageManager';
 
 interface RankingProps {
+  isUserOwner: boolean;
+  showToast: (message: string, type: 'success' | 'error') => void;
   sessionHistory: Session[];
   onViewProfile: (playerId: string) => void;
   onViewSession: (sessionId: string) => void;
 }
 
-const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile, onViewSession }) => {
+const Ranking: React.FC<RankingProps> = ({ isUserOwner, showToast, sessionHistory, onViewProfile, onViewSession }) => {
   const [rankingView, setRankingView] = useState<'annual' | 'lastGame'>('annual');
 
   const highlightStats = useMemo(() => {
@@ -133,6 +136,8 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile, onView
 
   return (
     <div className="space-y-6">
+        <HomepageImageManager isUserOwner={isUserOwner} showToast={showToast} />
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard 
                 icon={<HandIcon />} 

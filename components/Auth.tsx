@@ -132,7 +132,7 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
             <div className="relative">
                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-poker-gray"><LockIcon /></span>
                 <input type={showPassword ? 'text' : 'password'} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5 pl-10" required />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-poker-gray hover:text-white" aria-label="Toggle password visibility">
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-poker-gray hover:text-white" aria-label="Alternar visibilidade da senha">
                   {showPassword ? <EyeSlashIcon /> : <EyeIcon />}
                 </button>
             </div>
