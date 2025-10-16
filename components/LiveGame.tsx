@@ -45,6 +45,14 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
         setIsEditingName(false);
     }
   };
+
+  const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    if (value.length > 2) value = `${value.slice(0, 2)}/${value.slice(2)}`;
+    if (value.length > 5) value = `${value.slice(0, 5)}/${value.slice(5)}`;
+    setEditedName(value);
+  };
   
   const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => event.target.select();
 
@@ -63,7 +71,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-poker-light p-4 rounded-lg shadow-xl gap-4">
           {isEditingName && isUserAdmin ? (
             <div className="flex items-center gap-2 w-full">
-                <input type="text" value={editedName} onChange={(e) => setEditedName(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg w-full p-2" autoFocus />
+                <input type="text" value={editedName} onChange={handleGameNameChange} placeholder="DD/MM/AAAA" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg w-full p-2" autoFocus />
                 <button onClick={handleSaveName} className="px-4 py-2 text-white bg-poker-green hover:bg-poker-green/80 rounded-lg text-sm font-semibold">Salvar</button>
                 <button onClick={() => setIsEditingName(false)} className="px-4 py-2 text-poker-gray bg-poker-dark hover:bg-poker-dark/50 rounded-lg text-sm">Cancelar</button>
             </div>
@@ -74,7 +82,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
             </div>
           )}
           {isUserAdmin && (
-            <button onClick={() => setIsAddPlayerModalOpen(true)} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/80">
+            <button onClick={() => setIsAddPlayerModalOpen(true)} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white shadow-md hover:bg-poker-green/80">
               <span className="mr-2 h-5 w-5"><PlusIcon /></span>Incluir Jogador
             </button>
           )}

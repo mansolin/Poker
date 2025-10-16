@@ -3,7 +3,6 @@ import type { Session, Player } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import EditIcon from './icons/EditIcon';
 import TrashIcon from './icons/TrashIcon';
-import WhatsAppIcon from './icons/WhatsAppIcon';
 import PlayerAvatar from './PlayerAvatar';
 
 interface SessionDetailModalProps {
@@ -41,15 +40,6 @@ const PaymentToggle: React.FC<{ paid: boolean; onToggle: () => void; disabled: b
 const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUserAdmin, onClose, onEditGame, onDeleteGame, onTogglePayment, onViewProfile }) => {
     const rankedPlayers = [...session.players].map(p => ({ ...p, profit: p.finalChips - p.totalInvested })).sort((a, b) => b.profit - a.profit);
     const totalPot = session.players.reduce((sum, p) => sum + p.totalInvested, 0);
-
-    const handleExportWhatsApp = () => {
-        let report = `*📊 Resultado - Poker Club 📊*\n\n*Jogo: ${session.name}*\n\n*Classificação:*\n`;
-        rankedPlayers.forEach((p, i) => {
-          report += `${i + 1}º: ${p.name.split(' ')[0]} (${p.profit >= 0 ? '🟢' : '🔴'} R$ ${p.profit > 0 ? '+' : ''}${p.profit.toLocaleString('pt-BR')})\n`;
-        });
-        report += `\n*💰 Montante: R$ ${totalPot.toLocaleString('pt-BR')}*`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(report)}`, '_blank');
-    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
@@ -96,7 +86,6 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                 </div>
 
                  <div className="p-3 border-t border-poker-dark text-right flex justify-end items-center gap-4">
-                    <button onClick={handleExportWhatsApp} className="flex items-center px-4 py-2 text-sm font-semibold rounded-md bg-green-600 text-white shadow-md hover:bg-green-700"><WhatsAppIcon /> Exportar</button>
                     <button onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Fechar</button>
                 </div>
             </div>
