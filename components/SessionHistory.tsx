@@ -45,23 +45,29 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
   return (
     <>
       <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
-        <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-            <div className="flex items-center gap-4 flex-wrap">
-                <h2 className="text-xl md:text-2xl font-bold text-white">Histórico de Jogos</h2>
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-poker-dark p-1 rounded-md">
-                        <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-poker-green' : ''}`} title="Visão em Grade"><LayoutGridIcon /></button>
-                        <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-poker-green' : ''}`} title="Visão em Lista"><ListIcon /></button>
-                    </div>
-                    {isUserAdmin && <button onClick={onIncludeGame} className="flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white"><span className="h-5 w-5 mr-2"><PlusIcon /></span> Incluir Jogo</button>}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+                <h2 className="text-xl md:text-2xl font-bold text-white whitespace-nowrap">Histórico de Jogos</h2>
+                <div className="flex items-center bg-poker-dark p-1 rounded-md">
+                    <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-poker-green' : ''}`} title="Visão em Grade"><LayoutGridIcon /></button>
+                    <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-poker-green' : ''}`} title="Visão em Lista"><ListIcon /></button>
                 </div>
             </div>
-            <div className="bg-poker-dark p-3 rounded-lg text-center">
-                <div className="flex items-center justify-center text-poker-gray text-xs mb-1">
-                    <span className="h-4 w-4 mr-2"><TrendingUpIcon /></span>
-                    <h3 className="font-semibold uppercase tracking-wider">Total Jogado</h3>
+
+            <div className="flex w-full sm:w-auto items-stretch justify-between sm:justify-end gap-2">
+                {isUserAdmin && 
+                    <button onClick={onIncludeGame} className="flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-poker-green text-white flex-1 sm:flex-none">
+                        <span className="h-5 w-5 sm:mr-2"><PlusIcon /></span>
+                        <span className="hidden sm:inline">Incluir Jogo</span>
+                    </button>
+                }
+                <div className="bg-poker-dark p-2 rounded-lg text-center flex-1 sm:flex-none">
+                    <div className="flex items-center justify-center text-poker-gray text-[10px] sm:text-xs mb-1">
+                        <span className="h-4 w-4 mr-1"><TrendingUpIcon /></span>
+                        <h3 className="font-semibold uppercase tracking-wider">Total Jogado</h3>
+                    </div>
+                    <p className="text-xl sm:text-4xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
                 </div>
-                <p className="text-4xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
             </div>
         </div>
         
