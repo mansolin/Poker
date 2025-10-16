@@ -5,11 +5,6 @@ import LayoutGridIcon from './icons/LayoutGridIcon';
 import ListIcon from './icons/ListIcon';
 import GameCard from './GameCard';
 import SessionDetailModal from './SessionDetailModal';
-import StatCard from './StatCard';
-import TrendingUpIcon from './icons/TrendingUpIcon';
-import HandIcon from './icons/HandIcon';
-import CrownIcon from './icons/CrownIcon';
-import MedalIcon from './icons/MedalIcon';
 
 interface SessionHistoryProps {
   isUserAdmin: boolean;
@@ -36,46 +31,6 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
     }
   }, [sessions, selectedSession]);
 
-  const highlightStats = useMemo(() => {
-    if (sessions.length === 0) {
-      return { totalPot: 0, biggestWin: null, biggestWinner: null, kingOfConsistency: null };
-    }
-
-    const totalPot = sessions.reduce((sum, session) => sum + session.players.reduce((pSum, p) => pSum + p.totalInvested, 0), 0);
-
-    let biggestWin = { name: '', value: 0 };
-    sessions.forEach(session => {
-      session.players.forEach(p => {
-        const profit = p.finalChips - p.totalInvested;
-        if (profit > biggestWin.value) {
-          biggestWin = { name: p.name, value: profit };
-        }
-      });
-    });
-
-    const playerProfits = new Map<string, { name: string, total: number, wins: number }>();
-    sessions.forEach(session => {
-      session.players.forEach(p => {
-        const profit = p.finalChips - p.totalInvested;
-        const current = playerProfits.get(p.id) || { name: p.name, total: 0, wins: 0 };
-        playerProfits.set(p.id, {
-          name: p.name,
-          total: current.total + profit,
-          wins: current.wins + (profit > 0 ? 1 : 0),
-        });
-      });
-    });
-
-    const sortedByProfit = Array.from(playerProfits.values()).sort((a, b) => b.total - a.total);
-    const biggestWinner = sortedByProfit.length > 0 ? { name: sortedByProfit[0].name, value: sortedByProfit[0].total } : null;
-
-    const sortedByWins = Array.from(playerProfits.values()).sort((a, b) => b.wins - a.wins);
-    const kingOfConsistency = sortedByWins.length > 0 ? { name: sortedByWins[0].name, value: sortedByWins[0].wins } : null;
-
-    return { totalPot, biggestWin, biggestWinner, kingOfConsistency };
-  }, [sessions]);
-
-
   const filteredSessions = useMemo(() => {
     return sessions.filter(session => {
       const matchSearch = searchTerm === '' || session.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -100,13 +55,6 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
           <h2 className="text-xl md:text-2xl font-bold text-white">Histórico de Jogos</h2>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <StatCard icon={<TrendingUpIcon />} title="Total Jogado" value={`R$ ${highlightStats.totalPot.toLocaleString('pt-BR')}`} />
-            <StatCard icon={<HandIcon />} title="Maior Prêmio" value={`R$ ${highlightStats.biggestWin?.value.toLocaleString('pt-BR')}`} subtitle={highlightStats.biggestWin?.name} />
-            <StatCard icon={<CrownIcon />} title="Maior Ganhador" value={`R$ ${highlightStats.biggestWinner?.value.toLocaleString('pt-BR')}`} subtitle={highlightStats.biggestWinner?.name} />
-            <StatCard icon={<MedalIcon />} title="Rei da Constância" value={`${highlightStats.kingOfConsistency?.value} vitórias`} subtitle={highlightStats.kingOfConsistency?.name} />
-        </div>
-
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div className="flex items-center gap-4 w-full sm:w-auto">
                 <div className="flex items-center bg-poker-dark p-1 rounded-md">
