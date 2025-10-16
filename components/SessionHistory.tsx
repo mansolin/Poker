@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Session, Player } from '../types';
 import PlusIcon from './icons/PlusIcon';
 import LayoutGridIcon from './icons/LayoutGridIcon';
@@ -23,6 +23,13 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPlayerId, setFilterPlayerId] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  useEffect(() => {
+    if (selectedSession) {
+      const updatedSession = sessions.find(s => s.id === selectedSession.id);
+      setSelectedSession(updatedSession || null);
+    }
+  }, [sessions]);
 
   const filteredSessions = useMemo(() => {
     return sessions.filter(session => {
