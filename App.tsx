@@ -38,6 +38,7 @@ const App: React.FC = () => {
   const [viewingSession, setViewingSession] = useState<Session | null>(null);
 
   const isUserAdmin = userRole === 'owner' || userRole === 'admin';
+  const isUserAuthenticatedAndApproved = useMemo(() => user && userRole !== 'pending' && userRole !== 'visitor', [user, userRole]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -107,9 +108,21 @@ const App: React.FC = () => {
   }, [userRole, user]);
 
   useEffect(() => {
+    // If the user is not authenticated/approved AND not in visitor mode, don't set up listeners.
+    if (!isUserAuthenticatedAndApproved && !isVisitorMode) {
+      // Clear data on logout or if access is pending/revoked
+      setPlayers([]);
+      setSessionHistory([]);
+      setGamePlayers([]);
+      setCurrentGameName(null);
+      return;
+    }
+    
+    // Listeners for public/visitor data
     const unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
       setPlayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
     });
+    
     const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
     const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
       const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
@@ -120,23 +133,37 @@ const App: React.FC = () => {
           setViewingSession(updatedSession || null);
       }
     });
-    const unsubLiveGame = onSnapshot(doc(db, 'liveGame', 'current'), (snapshot) => {
-      if (snapshot.exists()) {
-        const liveGameData = snapshot.data();
-        setGamePlayers(liveGameData.players || []);
-        setCurrentGameName(liveGameData.gameName || null);
-      } else {
-        setGamePlayers([]);
-        setCurrentGameName(null);
-      }
-    });
-    const unsubConfig = onSnapshot(doc(db, 'config', 'defaults'), (snapshot) => {
-        if (snapshot.exists()) {
-            setGameDefaults(snapshot.data() as GameDefaults);
-        }
-    });
-    return () => { unsubPlayers(); unsubSessions(); unsubLiveGame(); unsubConfig(); };
-  }, [viewingSession]);
+
+    let unsubLiveGame = () => {};
+    let unsubConfig = () => {};
+
+    // Listeners for authenticated/approved users only
+    if (isUserAuthenticatedAndApproved) {
+        unsubLiveGame = onSnapshot(doc(db, 'liveGame', 'current'), (snapshot) => {
+            if (snapshot.exists()) {
+                const liveGameData = snapshot.data();
+                setGamePlayers(liveGameData.players || []);
+                setCurrentGameName(liveGameData.gameName || null);
+            } else {
+                setGamePlayers([]);
+                setCurrentGameName(null);
+            }
+        });
+        unsubConfig = onSnapshot(doc(db, 'config', 'defaults'), (snapshot) => {
+            if (snapshot.exists()) {
+                setGameDefaults(snapshot.data() as GameDefaults);
+            }
+        });
+    }
+
+    return () => { 
+      unsubPlayers(); 
+      unsubSessions(); 
+      unsubLiveGame(); 
+      unsubConfig(); 
+    };
+}, [isUserAuthenticatedAndApproved, isVisitorMode, viewingSession]);
+
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type, visible: true });
@@ -366,7 +393,7 @@ const App: React.FC = () => {
       case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
       case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Ranking)} />;
       case View.Cashier: return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettlePlayerDebts} onViewProfile={handleViewProfile} />;
-      case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} showToast={showToast} />;
+      case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} />;
       default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
     }
   };

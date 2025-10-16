@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { generateAndUploadMockData } from '../mock-data';
 import type { AppUser, UserRole, GameDefaults } from '../types';
 import PlusIcon from './icons/PlusIcon';
 import TrashIcon from './icons/TrashIcon';
 import UserFormModal from './UserFormModal';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../firebase';
-import SpinnerIcon from './icons/SpinnerIcon';
+import { setDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface SettingsProps {
     isUserOwner: boolean;
@@ -17,110 +15,9 @@ interface SettingsProps {
     gameDefaults: GameDefaults;
     onAddUser: (userData: Omit<AppUser, 'uid'>, password: string) => Promise<boolean>;
     onDeleteUser: (uid: string) => void;
-    showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const BannerImageManager: React.FC<{ showToast: SettingsProps['showToast'] }> = ({ showToast }) => {
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        const imageConfigRef = doc(db, 'config', 'homepageImage');
-        const unsubscribe = onSnapshot(imageConfigRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setImageUrl(docSnap.data().url);
-            } else {
-                setImageUrl(null);
-            }
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, []);
-
-    const handleFileSelect = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        setIsUploading(true);
-        setUploadProgress(0);
-        
-        const storageRef = ref(storage, 'homepage/main-image');
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
-        uploadTask.on('state_changed',
-            (snapshot) => {
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                setUploadProgress(progress);
-            },
-            (error) => {
-                console.error("Erro ao fazer upload da imagem:", error);
-                showToast('Falha ao atualizar a logo.', 'error');
-                setIsUploading(false);
-                if(fileInputRef.current) fileInputRef.current.value = "";
-            },
-            () => {
-                getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
-                    await setDoc(doc(db, 'config', 'homepageImage'), { url: downloadURL });
-                    showToast('Logo atualizada com sucesso!', 'success');
-                }).catch((error) => {
-                    console.error("Error getting download URL:", error);
-                    showToast('Falha ao obter URL da logo.', 'error');
-                }).finally(() => {
-                    setIsUploading(false);
-                    if(fileInputRef.current) fileInputRef.current.value = "";
-                });
-            }
-        );
-    };
-
-    return (
-        <div className="bg-poker-dark p-4 rounded-lg">
-             <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                className="hidden"
-            />
-            <h3 className="text-lg font-semibold text-white mb-2">Logo</h3>
-            <p className="text-sm text-poker-gray mb-4">Altere a logo exibida na tela de login.</p>
-            <div className="flex items-center space-x-4">
-                <div className="w-48 h-28 bg-poker-light rounded flex items-center justify-center overflow-hidden">
-                    {isLoading ? <SpinnerIcon /> : (
-                        imageUrl ? 
-                        <img src={imageUrl} alt="Preview da Logo" className="w-full h-full object-cover" /> : 
-                        <span className="text-poker-gray text-sm">Sem logo</span>
-                    )}
-                </div>
-                <button 
-                    onClick={handleFileSelect} 
-                    disabled={isUploading}
-                    className="px-4 py-2 text-sm font-semibold text-white bg-poker-green hover:bg-poker-green/80 rounded-md disabled:opacity-50"
-                >
-                    {isUploading ? `Enviando...` : 'Alterar Logo'}
-                </button>
-            </div>
-            {isUploading && (
-                <div className="mt-4">
-                    <div className="w-full bg-poker-light rounded-full h-2.5">
-                        <div className="bg-poker-green h-2.5 rounded-full transition-width duration-150" style={{ width: `${uploadProgress}%` }}></div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-
-const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUserRole, onSaveDefaults, gameDefaults, onAddUser, onDeleteUser, showToast }) => {
+const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUserRole, onSaveDefaults, gameDefaults, onAddUser, onDeleteUser }) => {
     const [isGeneratingData, setIsGeneratingData] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [buyIn, setBuyIn] = useState(gameDefaults.buyIn);
@@ -174,7 +71,6 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
                 <h2 className="text-xl md:text-2xl font-bold text-white mb-6">Configurações</h2>
                 
                 <div className="space-y-8">
-                    {isUserOwner && <BannerImageManager showToast={showToast} />}
 
                     <div className="bg-poker-dark p-4 rounded-lg">
                         <h3 className="text-lg font-semibold text-white mb-2">Valores Padrão</h3>
