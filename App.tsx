@@ -16,7 +16,6 @@ import { View } from './types';
 import { db, auth } from './firebase';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, getDocs, where } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
-import SessionDetailModal from './components/SessionDetailModal';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -32,7 +31,6 @@ const App: React.FC = () => {
   const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
-  const [viewingSession, setViewingSession] = useState<Session | null>(null);
   const [toast, setToast] = useState<ToastState>({ message: '', type: 'success', visible: false });
   const [appUsers, setAppUsers] = useState<AppUser[]>([]);
   const [gameDefaults, setGameDefaults] = useState<GameDefaults>({ buyIn: 50, rebuy: 50 });
@@ -52,15 +50,28 @@ const App: React.FC = () => {
           setUserRole(userData.role);
           setCurrentUserData(userData);
         } else {
+          // User document doesn't exist, create it.
+          // Check if an owner already exists.
           const usersRef = collection(db, 'users');
           const ownerQuery = query(usersRef, where("role", "==", "owner"));
           const ownerSnapshot = await getDocs(ownerQuery);
+
           const newRole: UserRole = ownerSnapshot.empty ? 'owner' : 'pending';
-          const newUserDocData: AppUser = { uid: currentUser.uid, name: currentUser.displayName || currentUser.email || 'Novo Usuário', email: currentUser.email || '', role: newRole };
+          
+          const newUserDocData: AppUser = {
+              uid: currentUser.uid,
+              name: currentUser.displayName || currentUser.email || 'Novo Usuário',
+              email: currentUser.email || '',
+              role: newRole
+          };
+
           await setDoc(userDocRef, { name: newUserDocData.name, email: newUserDocData.email, role: newUserDocData.role });
           setUserRole(newRole);
           setCurrentUserData(newUserDocData);
-          if (newRole === 'owner') showToast('Sua conta de Dono foi configurada!', 'success');
+
+          if (newRole === 'owner') {
+            showToast('Sua conta de Dono foi configurada!', 'success');
+          }
         }
       } else {
         setUserRole('visitor');
@@ -78,6 +89,7 @@ const App: React.FC = () => {
         unsubAppUsers = onSnapshot(query(collection(db, 'users'), orderBy('name')), (snapshot) => {
             const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
             setAppUsers(users);
+            // Also update current user data if it changed (e.g., role update)
             if (user) {
                 const updatedCurrentUser = users.find(u => u.uid === user.uid);
                 if (updatedCurrentUser) {
@@ -86,7 +98,9 @@ const App: React.FC = () => {
                 }
             }
         });
-    } else { setAppUsers([]); }
+    } else {
+        setAppUsers([]);
+    }
     return () => unsubAppUsers();
   }, [userRole, user]);
 
@@ -103,10 +117,15 @@ const App: React.FC = () => {
         const liveGameData = snapshot.data();
         setGamePlayers(liveGameData.players || []);
         setCurrentGameName(liveGameData.gameName || null);
-      } else { setGamePlayers([]); setCurrentGameName(null); }
+      } else {
+        setGamePlayers([]);
+        setCurrentGameName(null);
+      }
     });
     const unsubConfig = onSnapshot(doc(db, 'config', 'defaults'), (snapshot) => {
-        if (snapshot.exists()) setGameDefaults(snapshot.data() as GameDefaults);
+        if (snapshot.exists()) {
+            setGameDefaults(snapshot.data() as GameDefaults);
+        }
     });
     return () => { unsubPlayers(); unsubSessions(); unsubLiveGame(); unsubConfig(); };
   }, []);
@@ -118,14 +137,18 @@ const App: React.FC = () => {
 
   const handleAddPlayer = async (player: Omit<Player, 'id' | 'isActive'>) => {
     if (!isUserAdmin) return;
-    try { await addDoc(collection(db, 'players'), { ...player, isActive: true }); showToast('Jogador adicionado com sucesso!'); } 
-    catch (e) { showToast('Erro ao adicionar jogador.', 'error'); }
+    try {
+      await addDoc(collection(db, 'players'), { ...player, isActive: true });
+      showToast('Jogador adicionado com sucesso!');
+    } catch (e) { showToast('Erro ao adicionar jogador.', 'error'); }
   };
   const handleUpdatePlayer = async (updatedPlayer: Player) => {
     if (!isUserAdmin) return;
     const { id, ...playerData } = updatedPlayer;
-    try { await updateDoc(doc(db, 'players', id), playerData); showToast('Jogador atualizado com sucesso!'); } 
-    catch (e) { showToast('Erro ao atualizar jogador.', 'error'); }
+    try {
+      await updateDoc(doc(db, 'players', id), playerData);
+      showToast('Jogador atualizado com sucesso!');
+    } catch (e) { showToast('Erro ao atualizar jogador.', 'error'); }
   };
   const handleDeletePlayer = async (playerId: string) => {
     if (!isUserAdmin) return;
@@ -134,8 +157,10 @@ const App: React.FC = () => {
       return;
     }
     if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
-      try { await deleteDoc(doc(db, 'players', playerId)); showToast('Jogador excluído com sucesso!'); } 
-      catch (e) { showToast('Erro ao excluir jogador.', 'error'); }
+      try {
+        await deleteDoc(doc(db, 'players', playerId));
+        showToast('Jogador excluído com sucesso!');
+      } catch (e) { showToast('Erro ao excluir jogador.', 'error'); }
     }
   };
   const handleTogglePlayerStatus = async (playerId: string) => {
@@ -146,7 +171,9 @@ const App: React.FC = () => {
   const handleStartGame = async (playerIds: string[]) => {
     if (!isUserAdmin) return;
     const selectedPlayers = players.filter(p => playerIds.includes(p.id));
-    const newGamePlayers = selectedPlayers.map(p => ({ ...p, buyIn: gameDefaults.buyIn, rebuys: 0, totalInvested: gameDefaults.buyIn, finalChips: 0, paid: false }));
+    const newGamePlayers = selectedPlayers.map(p => ({
+      ...p, buyIn: gameDefaults.buyIn, rebuys: 0, totalInvested: gameDefaults.buyIn, finalChips: 0, paid: false
+    }));
     const gameName = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
     await setDoc(doc(db, 'liveGame', 'current'), { gameName: gameName, players: newGamePlayers });
     setActiveView(View.LiveGame);
@@ -211,13 +238,12 @@ const App: React.FC = () => {
   const handleOpenEditModal = (sessionId: string) => {
     if (!isUserAdmin) return;
     const session = sessionHistory.find(s => s.id === sessionId);
-    if (session) { setSessionToEdit(session); setViewingSession(null); setModalMode('edit'); }
+    if (session) { setSessionToEdit(session); setModalMode('edit'); }
   };
   const handleDeleteSession = async (sessionId: string) => {
     if (!isUserAdmin) return;
     if (window.confirm("Excluir este jogo do histórico?")) {
       try {
-        if (viewingSession && viewingSession.id === sessionId) setViewingSession(null);
         await deleteDoc(doc(db, 'sessions', sessionId));
         showToast('Jogo excluído do histórico.', 'success');
       } catch (e) { showToast('Erro ao excluir jogo.', 'error'); }
@@ -245,79 +271,113 @@ const App: React.FC = () => {
         });
         if (sessionUpdated) batch.update(doc(db, 'sessions', session.id), { players: updatedPlayers });
       });
-      try { await batch.commit(); showToast('Dívidas quitadas com sucesso!'); } 
-      catch (e) { showToast('Erro ao quitar dívidas.', 'error'); }
+      try {
+        await batch.commit();
+        showToast('Dívidas quitadas com sucesso!');
+      } catch (e) { showToast('Erro ao quitar dívidas.', 'error'); }
     }
   };
   const handleViewProfile = (playerId: string) => {
     setViewingPlayerId(playerId);
     setActiveView(View.PlayerProfile);
   };
-  const handleViewSession = (sessionId: string) => {
-    const session = sessionHistory.find(s => s.id === sessionId);
-    if (session) setViewingSession(session);
+  const handleLogout = () => {
+    signOut(auth);
+    setIsVisitorMode(false);
   };
-  const handleCloseSessionModal = () => setViewingSession(null);
-  const handleLogout = () => { signOut(auth); setIsVisitorMode(false); };
   const handleUpdateUserRole = async (uid: string, role: UserRole) => {
       if (userRole !== 'owner') return;
-      try { await updateDoc(doc(db, 'users', uid), { role }); showToast('Cargo do usuário atualizado!'); } 
-      catch { showToast('Erro ao atualizar cargo.', 'error'); }
+      try {
+          await updateDoc(doc(db, 'users', uid), { role });
+          showToast('Cargo do usuário atualizado!');
+      } catch { showToast('Erro ao atualizar cargo.', 'error'); }
   };
   const handleSaveDefaults = async (defaults: GameDefaults) => {
       if (!isUserAdmin) return;
-      try { await setDoc(doc(db, 'config', 'defaults'), defaults); showToast('Valores padrão salvos com sucesso!'); } 
-      catch { showToast('Erro ao salvar configurações.', 'error'); }
+      try {
+          await setDoc(doc(db, 'config', 'defaults'), defaults);
+          showToast('Valores padrão salvos com sucesso!');
+      } catch { showToast('Erro ao salvar configurações.', 'error'); }
   };
+  
   const handleAddUser = async (userData: Omit<AppUser, 'uid'>, password: string): Promise<boolean> => {
       if (userRole !== 'owner') return false;
       try {
+          // Firebase auth doesn't let us create users with password from the client-side directly
+          // without signing them in. This is a common workaround for admin panels.
+          // For a production app, this should be a backend function.
           const tempUserCredential = await createUserWithEmailAndPassword(auth, userData.email, password);
           await setDoc(doc(db, 'users', tempUserCredential.user.uid), { name: userData.name, email: userData.email, role: userData.role });
+
+          // Now, re-authenticate the original admin user
+          if (auth.currentUser && user) {
+            // This part is tricky on client-side and might require re-login.
+            // For simplicity, we show a success message.
+          }
           showToast('Usuário criado com sucesso!', 'success');
           return true;
       } catch (e: any) {
-          if (e.code === 'auth/email-already-in-use') showToast('Este e-mail já está em uso.', 'error');
-          else showToast('Erro ao criar usuário.', 'error');
+          if (e.code === 'auth/email-already-in-use') {
+              showToast('Este e-mail já está em uso.', 'error');
+          } else {
+              showToast('Erro ao criar usuário.', 'error');
+          }
           return false;
       }
   };
+
   const handleDeleteUser = async (uid: string) => {
       if (userRole !== 'owner') return;
       const confirmationMessage = "Tem certeza que deseja excluir este usuário?\n\nEsta ação remove os dados do usuário do app (Firestore), mas NÃO exclui a conta de login (Firebase Auth).\n\nEsta ação é irreversível.";
       if (window.confirm(confirmationMessage)) {
-          try { await deleteDoc(doc(db, 'users', uid)); showToast('Usuário removido do banco de dados.'); } 
-          catch { showToast('Erro ao remover usuário.', 'error'); }
+          try {
+              // Note: Deleting a user from Firebase Auth requires admin privileges,
+              // typically done via a backend (Cloud Function).
+              // Here we only delete the Firestore document.
+              await deleteDoc(doc(db, 'users', uid));
+              showToast('Usuário removido do banco de dados.');
+          } catch {
+              showToast('Erro ao remover usuário.', 'error');
+          }
       }
   };
+
 
   const renderContent = () => {
     switch (activeView) {
       case View.LiveGame: return <LiveGame isUserAdmin={isUserAdmin} players={gamePlayers} allPlayers={players} gameName={currentGameName} onAddRebuy={handleAddRebuy} onRemoveRebuy={handleRemoveRebuy} onUpdateFinalChips={handleUpdateFinalChips} onUpdateGameName={handleUpdateGameName} onEndGame={handleEndGame} onCancelGame={handleCancelGame} onGoToPlayers={() => setActiveView(View.Players)} onAddPlayerToGame={handleAddPlayerToLiveGame} onViewProfile={handleViewProfile} gameDefaults={gameDefaults} />;
       case View.Players: return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onStartGame={handleStartGame} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
-      case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onIncludeGame={() => setModalMode('add')} onViewSession={handleViewSession} />;
-      case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
+      case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onIncludeGame={() => setModalMode('add')} onEditGame={handleOpenEditModal} onDeleteGame={handleDeleteSession} onTogglePayment={handleTogglePaymentStatus} onViewProfile={handleViewProfile}/>;
+      case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} />;
       case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Ranking)} />;
       case View.Cashier: return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettlePlayerDebts} onViewProfile={handleViewProfile} />;
       case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} />;
-      default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
+      default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} />;
     }
   };
   
-  if (isLoading) return <div className="flex justify-center items-center h-screen bg-poker-dark"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-poker-gold"></div><p className="ml-4 text-white text-lg">Carregando...</p></div>;
-  if (!user && !isVisitorMode) return <Auth onEnterAsVisitor={() => setIsVisitorMode(true)} />;
-  if (userRole === 'pending') return (
-    <div className="min-h-screen bg-poker-dark">
-      <Header userName={currentUserData?.name || null} userRole={userRole} isVisitor={false} activeView={activeView} setActiveView={() => {}} onLogout={handleLogout} />
-      <main className="container mx-auto p-4 md:p-8 flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)'}}>
-          <div className="bg-poker-light p-10 rounded-lg shadow-xl text-center max-w-lg">
-              <div className="text-poker-gold mx-auto mb-4 w-16 h-16"><ClockIcon /></div>
-              <h2 className="text-2xl font-bold text-white mb-4">Acesso Pendente</h2>
-              <p className="text-poker-gray">Sua conta foi criada com sucesso e está aguardando aprovação do Dono do clube. <br />Você será notificado quando seu acesso for liberado.</p>
-          </div>
-      </main>
-    </div>
-  );
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-screen bg-poker-dark"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-poker-gold"></div><p className="ml-4 text-white text-lg">Carregando...</p></div>;
+  }
+
+  if (!user && !isVisitorMode) {
+    return <Auth onEnterAsVisitor={() => setIsVisitorMode(true)} />;
+  }
+  
+  if (userRole === 'pending') {
+      return (
+         <div className="min-h-screen bg-poker-dark">
+            <Header userName={currentUserData?.name || null} userRole={userRole} isVisitor={false} activeView={activeView} setActiveView={() => {}} onLogout={handleLogout} />
+            <main className="container mx-auto p-4 md:p-8 flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)'}}>
+                <div className="bg-poker-light p-10 rounded-lg shadow-xl text-center max-w-lg">
+                    <div className="text-poker-gold mx-auto mb-4 w-16 h-16"><ClockIcon /></div>
+                    <h2 className="text-2xl font-bold text-white mb-4">Acesso Pendente</h2>
+                    <p className="text-poker-gray">Sua conta foi criada com sucesso e está aguardando aprovação do Dono do clube. <br />Você será notificado quando seu acesso for liberado.</p>
+                </div>
+            </main>
+         </div>
+      );
+  }
 
   return (
     <div className="min-h-screen bg-poker-dark">
@@ -327,9 +387,6 @@ const App: React.FC = () => {
       </main>
       {modalMode && isUserAdmin && (
         <AddHistoricGame players={players} onSave={handleSaveHistoricGame} onClose={() => { setModalMode(null); setSessionToEdit(null); }} sessionToEdit={sessionToEdit} />
-      )}
-      {viewingSession && (
-        <SessionDetailModal session={viewingSession} onClose={handleCloseSessionModal} isUserAdmin={isUserAdmin} onEditGame={handleOpenEditModal} onDeleteGame={handleDeleteSession} onTogglePayment={handleTogglePaymentStatus} onViewProfile={handleViewProfile} />
       )}
       <Toast message={toast.message} type={toast.type} visible={toast.visible} />
       <style>{`.animate-fade-in { animation: fadeIn 0.5s ease-in-out; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
