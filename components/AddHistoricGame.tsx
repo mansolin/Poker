@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Player, GamePlayer, Session } from '../types';
 import { Timestamp } from 'firebase/firestore';
 
@@ -19,7 +19,7 @@ interface HistoricPlayer extends Player {
 const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onClose, sessionToEdit }) => {
     const [gameName, setGameName] = useState('');
     const [participants, setParticipants] = useState<HistoricPlayer[]>([]);
-
+    const initialStateRef = useRef<string | null>(null);
     const isEditMode = !!sessionToEdit;
 
     useEffect(() => {
@@ -29,28 +29,32 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
             return a.name.localeCompare(b.name);
         });
 
+        let initialName = '';
+        let initialParticipants: HistoricPlayer[] = [];
+
         if (isEditMode && sessionToEdit) {
-            const formattedDate = sessionToEdit.date.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-            setGameName(formattedDate);
-            
-            const initialParticipants = sortedPlayers.map(p => {
+            initialName = sessionToEdit.date.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            initialParticipants = sortedPlayers.map(p => {
+                const { id, name, whatsapp, pixKey, isActive } = p;
+                const cleanPlayer = { id, name, whatsapp, pixKey, isActive };
                 const sessionPlayer = sessionToEdit.players.find(sp => sp.id === p.id);
                 if (sessionPlayer) {
-                    return {
-                        ...p,
-                        isPlaying: true,
-                        totalInvested: sessionPlayer.totalInvested,
-                        finalChips: sessionPlayer.finalChips,
-                        paid: sessionPlayer.paid
-                    };
+                    return { ...cleanPlayer, isPlaying: true, totalInvested: sessionPlayer.totalInvested, finalChips: sessionPlayer.finalChips, paid: sessionPlayer.paid };
                 }
-                return { ...p, isPlaying: false, totalInvested: 0, finalChips: 0, paid: false };
+                return { ...cleanPlayer, isPlaying: false, totalInvested: 0, finalChips: 0, paid: false };
             });
-            setParticipants(initialParticipants);
         } else {
-            setGameName('');
-            setParticipants(sortedPlayers.map(p => ({ ...p, isPlaying: false, totalInvested: 0, finalChips: 0, paid: false })))
+            initialParticipants = sortedPlayers.map(p => {
+                const { id, name, whatsapp, pixKey, isActive } = p;
+                const cleanPlayer = { id, name, whatsapp, pixKey, isActive };
+                return { ...cleanPlayer, isPlaying: false, totalInvested: 0, finalChips: 0, paid: false };
+            });
         }
+        
+        setGameName(initialName);
+        setParticipants(initialParticipants);
+        initialStateRef.current = JSON.stringify({ gameName: initialName, participants: initialParticipants });
+
     }, [sessionToEdit, players, isEditMode]);
 
 
@@ -64,6 +68,22 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
             chipsMatch: invested === finalChips && invested > 0
         };
     }, [participants]);
+
+    const hasUnsavedChanges = useMemo(() => {
+        if (!initialStateRef.current) return false;
+        const currentStateJSON = JSON.stringify({ gameName, participants });
+        return initialStateRef.current !== currentStateJSON;
+    }, [gameName, participants]);
+
+    const handleAttemptClose = () => {
+        if (hasUnsavedChanges) {
+            if (window.confirm("Você tem alterações não salvas. Deseja realmente fechar?")) {
+                onClose();
+            }
+        } else {
+            onClose();
+        }
+    };
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let value = e.target.value.replace(/\D/g, '');
@@ -118,7 +138,7 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
                 ...rest,
                 buyIn: 0, // Not tracked for historic games
                 rebuys: 0, // Not tracked for historic games
-                paid: isEditMode ? rest.paid : (rest.finalChips - rest.totalInvested) === 0,
+                paid: isEditMode ? rest.paid : (rest.finalChips - rest.totalInvested) >= 0,
             }));
 
         const newSession: Omit<Session, 'id'> = {
@@ -131,11 +151,11 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
-            <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4" onClick={handleAttemptClose} aria-modal="true" role="dialog">
+            <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-poker-dark flex justify-between items-center">
                     <h2 className="text-xl font-bold text-white">{isEditMode ? 'Editar Jogo' : 'Incluir Jogo Antigo'}</h2>
-                     <button onClick={onClose} className="text-poker-gray hover:text-white text-3xl leading-none">&times;</button>
+                     <button onClick={handleAttemptClose} className="text-poker-gray hover:text-white text-3xl leading-none">&times;</button>
                 </div>
                 
                 <div className="p-6 space-y-4 flex-grow overflow-y-auto">
@@ -212,7 +232,7 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
                             )}
                         </div>
                         <div className="flex space-x-4">
-                            <button onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
+                            <button onClick={handleAttemptClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
                             <button onClick={handleSave} disabled={!chipsMatch} className="px-6 py-2 text-white bg-poker-green hover:bg-poker-green/80 disabled:bg-poker-gray/50 disabled:cursor-not-allowed font-medium rounded-lg text-sm">Salvar Jogo</button>
                         </div>
                     </div>
