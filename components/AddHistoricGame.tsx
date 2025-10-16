@@ -30,7 +30,10 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
         });
 
         if (isEditMode && sessionToEdit) {
-            setGameName(sessionToEdit.name);
+            const date = sessionToEdit.date.toDate();
+            const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+            setGameName(formattedDate);
+            
             const initialParticipants = sortedPlayers.map(p => {
                 const sessionPlayer = sessionToEdit.players.find(sp => sp.id === p.id);
                 if (sessionPlayer) {
@@ -46,6 +49,7 @@ const AddHistoricGame: React.FC<AddHistoricGameProps> = ({ players, onSave, onCl
             });
             setParticipants(initialParticipants);
         } else {
+            setGameName('');
             setParticipants(sortedPlayers.map(p => ({ ...p, isPlaying: false, totalInvested: 0, finalChips: 0, paid: false })))
         }
     }, [sessionToEdit, players, isEditMode]);

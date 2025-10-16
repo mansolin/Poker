@@ -208,10 +208,8 @@ const App: React.FC = () => {
   const handleEndGame = async () => {
     if (!isUserAdmin || !currentGameName) return;
     const gamePlayersWithPayment = gamePlayers.map(p => ({ ...p, paid: (p.finalChips - p.totalInvested) >= 0 }));
-    const dateParts = currentGameName.split('/');
-    const gameDate = new Date(Number(`20${dateParts[2]}`), Number(dateParts[1]) - 1, Number(dateParts[0]));
     try {
-      await addDoc(collection(db, 'sessions'), { name: currentGameName, date: Timestamp.fromDate(gameDate), players: gamePlayersWithPayment });
+      await addDoc(collection(db, 'sessions'), { name: currentGameName, date: Timestamp.now(), players: gamePlayersWithPayment });
       await deleteDoc(doc(db, 'liveGame', 'current'));
       showToast('Jogo salvo no histórico com sucesso!');
       setActiveView(View.SessionHistory);
@@ -330,7 +328,8 @@ const App: React.FC = () => {
 
   const handleDeleteUser = async (uid: string) => {
       if (userRole !== 'owner') return;
-      if (window.confirm("Tem certeza que deseja excluir este usuário? Esta ação é irreversível.")) {
+      const confirmationMessage = "Tem certeza que deseja excluir este usuário?\n\nEsta ação remove os dados do usuário do app (Firestore), mas NÃO exclui a conta de login (Firebase Auth).\n\nEsta ação é irreversível.";
+      if (window.confirm(confirmationMessage)) {
           try {
               // Note: Deleting a user from Firebase Auth requires admin privileges,
               // typically done via a backend (Cloud Function).
