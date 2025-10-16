@@ -252,6 +252,7 @@ const App: React.FC = () => {
     if (session) { 
       setSessionToEdit(session);
       setModalMode('edit');
+      setViewingSession(null);
     }
   };
   const handleDeleteSession = async (sessionId: string) => {
