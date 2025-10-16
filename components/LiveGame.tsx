@@ -4,6 +4,7 @@ import EditIcon from './icons/EditIcon';
 import PlusIcon from './icons/PlusIcon';
 import PlayerAvatar from './PlayerAvatar';
 import BlindsTimer from './BlindsTimer';
+import ClockIcon from './icons/ClockIcon';
 
 interface LiveGameProps {
   isUserAdmin: boolean;
@@ -26,6 +27,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(gameName || '');
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
+  const [isTimerVisible, setIsTimerVisible] = useState(false);
 
   useEffect(() => { if (gameName) setEditedName(gameName); }, [gameName]);
 
@@ -88,22 +90,15 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
             </div>
           )}
           {isUserAdmin && (
-            <button onClick={() => setIsAddPlayerModalOpen(true)} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white shadow-md hover:bg-poker-green/80">
-              <span className="mr-2 h-5 w-5"><PlusIcon /></span>Incluir Jogador
-            </button>
-          )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center"><h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase">Montante (R$)</h3><p className="text-3xl md:text-4xl font-bold text-poker-gold">R$ {totalCash.toLocaleString('pt-BR')}</p></div>
-            <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center"><h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase">Total em Fichas</h3><p className="text-3xl md:text-4xl font-bold text-white">{totalCash.toLocaleString('pt-BR')}</p></div>
-            <div className={`bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center border-2 ${chipsMatch ? 'border-transparent' : 'border-red-500'}`}>
-                <h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase">Fichas Distribuídas</h3><p className={`text-3xl md:text-4xl font-bold ${chipsMatch ? 'text-white' : 'text-red-500'}`}>{distributedChips.toLocaleString('pt-BR')}</p>
-                {!chipsMatch && (<div className="mt-1"><p className="text-xs text-red-400">Diferença: {difference > 0 ? '+' : ''}{difference.toLocaleString('pt-BR')}</p></div>)}
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <button onClick={() => setIsTimerVisible(prev => !prev)} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
+                <span className="mr-2 h-5 w-5"><ClockIcon /></span>{isTimerVisible ? 'Ocultar Timer' : 'Mostrar Timer'}
+              </button>
+              <button onClick={() => setIsAddPlayerModalOpen(true)} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white shadow-md hover:bg-poker-green/80">
+                <span className="mr-2 h-5 w-5"><PlusIcon /></span>Incluir Jogador
+              </button>
             </div>
-        </div>
-        <div className="lg:col-span-1">{isUserAdmin && <BlindsTimer />}</div>
+          )}
       </div>
 
       <div className="bg-poker-light rounded-lg shadow-xl overflow-hidden">
@@ -125,6 +120,22 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
             </tbody></table>
         </div>
       </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center"><h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase">Montante (R$)</h3><p className="text-3xl md:text-4xl font-bold text-poker-gold">R$ {totalCash.toLocaleString('pt-BR')}</p></div>
+          <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center"><h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase">Total em Fichas</h3><p className="text-3xl md:text-4xl font-bold text-white">{totalCash.toLocaleString('pt-BR')}</p></div>
+          <div className={`bg-poker-light p-4 md:p-6 rounded-lg shadow-xl text-center border-2 ${chipsMatch ? 'border-transparent' : 'border-red-500'}`}>
+              <h3 className="text-base md:text-lg font-semibold text-poker-gray uppercase">Fichas Distribuídas</h3><p className={`text-3xl md:text-4xl font-bold ${chipsMatch ? 'text-white' : 'text-red-500'}`}>{distributedChips.toLocaleString('pt-BR')}</p>
+              {!chipsMatch && (<div className="mt-1"><p className="text-xs text-red-400">Diferença: {difference > 0 ? '+' : ''}{difference.toLocaleString('pt-BR')}</p></div>)}
+          </div>
+      </div>
+
+      {isTimerVisible && isUserAdmin && (
+        <div className="flex justify-center">
+            <BlindsTimer />
+        </div>
+      )}
+
       {isUserAdmin && (
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="text-left w-full sm:w-auto">{!chipsMatch && totalCash > 0 && <p className="text-sm text-yellow-400 animate-pulse">Ajuste as fichas para poder salvar.</p>}</div>
