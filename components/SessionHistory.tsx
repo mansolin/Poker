@@ -1,83 +1,80 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Session, Player } from '../types';
-import PlusIcon from './icons/PlusIcon';
-import LayoutGridIcon from './icons/LayoutGridIcon';
-import ListIcon from './icons/ListIcon';
 import GameCard from './GameCard';
-import TrendingUpIcon from './icons/TrendingUpIcon';
+import SessionDetailModal from './SessionDetailModal';
 
 interface SessionHistoryProps {
   isUserAdmin: boolean;
-  sessions: Session[];
+  sessionHistory: Session[];
   players: Player[];
-  onViewSession: (sessionId: string) => void;
+  onEditHistoricGame: (session: Session) => void;
+  onViewProfile: (playerId: string) => void;
+  initialSessionId: string | null;
+  onClearInitialSession: () => void;
 }
 
-const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
-  const { isUserAdmin, sessions, players, onViewSession } = props;
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+const SessionHistory: React.FC<SessionHistoryProps> = ({
+  isUserAdmin,
+  sessionHistory,
+  players,
+  onEditHistoricGame,
+  onViewProfile,
+  initialSessionId,
+  onClearInitialSession,
+}) => {
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
-  const totalPot = useMemo(() => {
-    return sessions.reduce((total, session) => {
-      return total + session.players.reduce((sessionTotal, p) => sessionTotal + p.totalInvested, 0);
-    }, 0);
-  }, [sessions]);
+  useEffect(() => {
+    if (initialSessionId) {
+      const sessionToView = sessionHistory.find(s => s.id === initialSessionId);
+      if (sessionToView) {
+        setSelectedSession(sessionToView);
+      }
+      onClearInitialSession();
+    }
+  }, [initialSessionId, sessionHistory, onClearInitialSession]);
 
-  if (sessions.length === 0) {
-     return (
+  const handleSessionClick = (session: Session) => {
+    setSelectedSession(session);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedSession(null);
+  };
+  
+  if (sessionHistory.length === 0) {
+    return (
         <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
-            <h2 className="text-2xl font-bold text-white mb-4">Nenhum Histórico</h2>
-            <p className="text-poker-gray">Ainda não há jogos registrados no histórico.</p>
+            <h2 className="text-2xl font-bold text-white mb-4">Nenhum Jogo Salvo</h2>
+            <p className="text-poker-gray mb-6">Quando um jogo for finalizado, ele aparecerá aqui.</p>
         </div>
-     );
+    )
   }
 
   return (
     <>
       <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-4">
-                <h2 className="text-xl md:text-2xl font-bold text-white whitespace-nowrap">Histórico de Jogos</h2>
-                <div className="flex items-center bg-poker-dark p-1 rounded-md">
-                    <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-poker-green' : ''}`} title="Visão em Grade"><LayoutGridIcon /></button>
-                    <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-poker-green' : ''}`} title="Visão em Lista"><ListIcon /></button>
-                </div>
-            </div>
-
-            <div className="flex w-full sm:w-auto items-stretch justify-end gap-2">
-                <div className="bg-poker-dark p-2 rounded-lg text-center flex-1 sm:flex-none">
-                    <div className="flex items-center justify-center text-poker-gray text-[10px] sm:text-xs mb-1">
-                        <span className="h-4 w-4 mr-1"><TrendingUpIcon /></span>
-                        <h3 className="font-semibold uppercase tracking-wider">Total Jogado</h3>
-                    </div>
-                    <p className="text-xl sm:text-4xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
-                </div>
-            </div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Histórico de Jogos</h2>
         </div>
-        
-        <div className="max-h-[60vh] overflow-y-auto pr-2">
-          {sessions.length > 0 ? (
-            viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {sessions.map(session => (
-                  <GameCard key={session.id} session={session} onClick={() => onViewSession(session.id)} />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {sessions.map(session => (
-                  <div key={session.id} onClick={() => onViewSession(session.id)} className="flex justify-between items-center bg-poker-dark p-3 rounded-lg cursor-pointer hover:bg-poker-dark/70">
-                    <span className="font-semibold text-white">{session.name}</span>
-                    <span className="text-sm text-poker-gold">R$ {session.players.reduce((sum, p) => sum + p.totalInvested, 0).toLocaleString('pt-BR')}</span>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : (
-            <p className="text-center text-poker-gray py-8">Nenhum histórico de jogo para exibir.</p>
-          )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[70vh] overflow-y-auto pr-2">
+          {sessionHistory.map(session => (
+            <GameCard key={session.id} session={session} onClick={() => handleSessionClick(session)} />
+          ))}
         </div>
       </div>
+
+      {selectedSession && (
+        <SessionDetailModal
+          isUserAdmin={isUserAdmin}
+          session={selectedSession}
+          allPlayers={players}
+          onClose={handleCloseModal}
+          onSave={onEditHistoricGame}
+          onViewProfile={onViewProfile}
+        />
+      )}
     </>
   );
 };

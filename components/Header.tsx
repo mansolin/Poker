@@ -7,6 +7,7 @@ import HistoryIcon from './icons/HistoryIcon';
 import CashierIcon from './icons/CashierIcon';
 import SpadeTreeLogo from './SpadeTreeLogo';
 import MenuIcon from './icons/MenuIcon';
+import LogoutIcon from './icons/LogoutIcon';
 
 interface HeaderProps {
   isUserAuthenticated: boolean;
@@ -14,9 +15,10 @@ interface HeaderProps {
   setActiveView: (view: View) => void;
   onOpenMenu: () => void;
   userRole: UserRole;
+  onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setActiveView, onOpenMenu, userRole }) => {
+const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setActiveView, onOpenMenu, userRole, onLogout }) => {
   const navItems = [
     { view: View.LiveGame, icon: <PokerChipIcon /> },
     { view: View.Players, icon: <UsersIcon /> },
@@ -26,10 +28,13 @@ const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setAct
   ];
 
   const isViewDisabled = (view: View): boolean => {
-    if (!isUserAuthenticated) return true;
     if (userRole === 'visitor') {
       // Visitors can only see Ranking, History, and the Live Game
       return ![View.Ranking, View.SessionHistory, View.LiveGame].includes(view);
+    }
+    if (!isUserAuthenticated) {
+        // Disables Players and Cashier for non-authenticated (but not visitor) roles like pending
+        return [View.Players, View.Cashier].includes(view);
     }
     return false;
   };
@@ -68,13 +73,22 @@ const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setAct
         </div>
 
         <div className="flex items-center">
-            {isUserAuthenticated && (
+            {isUserAuthenticated ? (
                 <button
                     onClick={onOpenMenu}
                     title="Menu"
                     className="h-10 w-10 flex items-center justify-center rounded-full text-poker-gray hover:bg-poker-dark hover:text-white transition-colors duration-300"
                 >
                     <span className="h-6 w-6"><MenuIcon /></span>
+                </button>
+            ) : userRole === 'visitor' && (
+                <button
+                    onClick={onLogout}
+                    title="Sair do modo Visitante"
+                    className="flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-poker-dark text-poker-gray shadow-md hover:bg-poker-dark/70 hover:text-white transition-colors"
+                >
+                    <span className="h-5 w-5 mr-2"><LogoutIcon /></span>
+                    Sair
                 </button>
             )}
         </div>

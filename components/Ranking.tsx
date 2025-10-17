@@ -2,8 +2,12 @@ import React, { useMemo, useState, useEffect } from 'react';
 import type { Session } from '../types';
 import PlayerAvatar from './PlayerAvatar';
 import StatCard from './StatCard';
+import RankingGraphModal from './RankingGraphModal';
+import TrophyIcon from './icons/TrophyIcon';
+import TrendingUpIcon from './icons/TrendingUpIcon';
 import HandIcon from './icons/HandIcon';
 import CrownIcon from './icons/CrownIcon';
+import BarChartIcon from './icons/BarChartIcon';
 import MedalIcon from './icons/MedalIcon';
 
 interface RankingProps {
@@ -12,198 +16,211 @@ interface RankingProps {
   onViewSession: (sessionId: string) => void;
 }
 
-const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile, onViewSession }) => {
-  const [rankingView, setRankingView] = useState<'annual' | 'lastGame'>('annual');
+interface PlayerStats {
+  id: string;
+  name: string;
+  profit: number;
+  gamesPlayed: number;
+  wins: number;
+  winRate: number;
+  totalInvested: number;
+  biggestWin: number;
+  biggestWinSessionId: string | null;
+}
 
-  const highlightStats = useMemo(() => {
-    if (sessionHistory.length === 0) {
-      return { biggestWin: null, biggestWinner: null, kingOfConsistency: null };
-    }
+const calculateStats = (sessions: Session[]): { rankedPlayers: PlayerStats[], totalGames: number, totalPot: number, biggestWinner: PlayerStats | null, biggestPrizePlayer: PlayerStats | null } => {
+    const stats = new Map<string, PlayerStats>();
 
-    let biggestWin: { name: string, value: number, playerId: string, sessionId: string, date: string } | null = null;
-    sessionHistory.forEach(session => {
-      const sessionDate = session.date.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-      session.players.forEach(p => {
-        const profit = p.finalChips - p.totalInvested;
-        if (!biggestWin || profit > biggestWin.value) {
-            if (profit > 0) { // Only count positive profits as wins
-                biggestWin = { name: p.name, value: profit, playerId: p.id, sessionId: session.id, date: sessionDate };
-            }
-        }
-      });
-    });
-
-    const playerProfits = new Map<string, { name: string, total: number, wins: number }>();
-    sessionHistory.forEach(session => {
-      session.players.forEach(p => {
-        const profit = p.finalChips - p.totalInvested;
-        const current = playerProfits.get(p.id) || { name: p.name, total: 0, wins: 0 };
-        playerProfits.set(p.id, {
-          name: p.name,
-          total: current.total + profit,
-          wins: current.wins + (profit > 0 ? 1 : 0),
-        });
-      });
-    });
-
-    const sortedByProfit = Array.from(playerProfits.entries()).sort(([, a], [, b]) => b.total - a.total);
-    const biggestWinner = sortedByProfit.length > 0 && sortedByProfit[0][1].total > 0 ? { id: sortedByProfit[0][0], name: sortedByProfit[0][1].name, value: sortedByProfit[0][1].total } : null;
-    
-    const sortedByWins = Array.from(playerProfits.entries()).sort(([, a], [, b]) => {
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        return b.total - a.total; // Tie-breaker
-    });
-    const kingOfConsistency = sortedByWins.length > 0 && sortedByWins[0][1].wins > 0 ? { id: sortedByWins[0][0], name: sortedByWins[0][1].name, value: sortedByWins[0][1].wins } : null;
-
-    return { biggestWin, biggestWinner, kingOfConsistency };
-  }, [sessionHistory]);
-
-  const availableYears = useMemo(() => {
-    const years = new Set(sessionHistory.map(s => s.date.toDate().getFullYear().toString()));
-    return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, [sessionHistory]);
-
-  const [selectedYear, setSelectedYear] = useState<string>(availableYears[0] || new Date().getFullYear().toString());
-
-  useEffect(() => {
-    if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
-      setSelectedYear(availableYears[0]);
-    } else if (availableYears.length === 0) {
-      setSelectedYear(new Date().getFullYear().toString());
-    }
-  }, [availableYears, selectedYear]);
-
-  const annualRankingData = useMemo(() => {
-    const profits = new Map<string, number>();
-    const playerNames = new Map<string, string>();
-
-    sessionHistory
-      .filter(session => session.date.toDate().getFullYear().toString() === selectedYear)
-      .forEach(session => {
+    sessions.forEach(session => {
         session.players.forEach(p => {
-          const currentProfit = profits.get(p.id) || 0;
-          profits.set(p.id, currentProfit + (p.finalChips - p.totalInvested));
-          if (!playerNames.has(p.id)) {
-            playerNames.set(p.id, p.name);
-          }
+            if (!stats.has(p.id)) {
+                stats.set(p.id, {
+                    id: p.id, name: p.name, profit: 0, gamesPlayed: 0, wins: 0,
+                    winRate: 0, totalInvested: 0, biggestWin: 0, biggestWinSessionId: null
+                });
+            }
+            const playerStats = stats.get(p.id)!;
+            const profit = p.finalChips - p.totalInvested;
+
+            playerStats.profit += profit;
+            playerStats.gamesPlayed++;
+            playerStats.totalInvested += p.totalInvested;
+            if (profit > 0) playerStats.wins++;
+            if (profit > playerStats.biggestWin) {
+                playerStats.biggestWin = profit;
+                playerStats.biggestWinSessionId = session.id;
+            }
         });
-      });
+    });
 
-    return Array.from(profits.entries())
-      .map(([id, totalProfit]) => ({
-        id,
-        name: playerNames.get(id)!,
-        profit: totalProfit,
-      }))
-      .sort((a, b) => b.profit - a.profit);
-  }, [sessionHistory, selectedYear]);
+    const rankedPlayers = Array.from(stats.values())
+        .map(p => ({ ...p, winRate: p.gamesPlayed > 0 ? (p.wins / p.gamesPlayed) * 100 : 0 }))
+        .sort((a, b) => b.profit - a.profit);
+    
+    const totalGames = sessions.length;
+    const totalPot = sessions.reduce((sum, s) => sum + s.players.reduce((ps, p) => ps + p.totalInvested, 0), 0);
+    
+    const biggestWinner = [...rankedPlayers].sort((a, b) => b.profit - a.profit)[0] || null;
+    const biggestPrizePlayer = [...rankedPlayers].sort((a,b) => b.biggestWin - a.biggestWin)[0] || null;
 
-  const lastGameRankingData = useMemo(() => {
-    if (sessionHistory.length === 0) return [];
-    const lastSession = sessionHistory[0]; // Sessions are pre-sorted by date desc
-    return lastSession.players
-      .map(p => ({
-        id: p.id,
-        name: p.name,
-        profit: p.finalChips - p.totalInvested,
-      }))
-      .sort((a, b) => b.profit - a.profit);
-  }, [sessionHistory]);
+    return { rankedPlayers, totalGames, totalPot, biggestWinner, biggestPrizePlayer };
+};
 
-  if (sessionHistory.length === 0) {
-    return (
-      <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
-        <h2 className="text-2xl font-bold text-white mb-4">Ranking Indisponível</h2>
-        <p className="text-poker-gray">Nenhum histórico de jogo encontrado para gerar o ranking.</p>
-      </div>
-    );
-  }
-  
-  const getPodiumColor = (index: number) => {
-    if (index === 0) return 'border-poker-gold bg-poker-gold/10';
-    if (index === 1) return 'border-gray-400 bg-gray-400/10';
-    if (index === 2) return 'border-yellow-700 bg-yellow-700/10';
-    return 'border-transparent';
-  };
 
-  const dataToDisplay = rankingView === 'annual' ? annualRankingData : lastGameRankingData;
-  const title = rankingView === 'annual' 
-    ? `Ranking Anual (${selectedYear})` 
-    : `Resultado - Último Jogo (${sessionHistory[0]?.name || ''})`;
+const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile, onViewSession }) => {
+    const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
+    const [filterType, setFilterType] = useState<'acumulado' | 'anual' | 'ultimoJogo'>('acumulado');
 
-  return (
-    <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard 
-                icon={<HandIcon />} 
-                title="Maior Prêmio/Jogo" 
-                value={highlightStats.biggestWin ? `R$ ${highlightStats.biggestWin.value.toLocaleString('pt-BR')}` : 'N/A'}
-                subtitle={highlightStats.biggestWin?.name}
-                onValueClick={highlightStats.biggestWin ? () => onViewSession(highlightStats.biggestWin!.sessionId) : undefined}
-                onSubtitleClick={highlightStats.biggestWin ? () => onViewProfile(highlightStats.biggestWin!.playerId) : undefined}
-                detail={highlightStats.biggestWin?.date}
-            />
-            <StatCard 
-                icon={<CrownIcon />} 
-                title="Maior Ganhador (Acumulado)" 
-                value={highlightStats.biggestWinner ? `R$ ${highlightStats.biggestWinner.value.toLocaleString('pt-BR')}` : 'N/A'}
-                subtitle={highlightStats.biggestWinner?.name}
-                onSubtitleClick={highlightStats.biggestWinner ? () => onViewProfile(highlightStats.biggestWinner!.id) : undefined}
-            />
-            <StatCard 
-                icon={<MedalIcon />} 
-                title="Rei da Constância" 
-                value={highlightStats.kingOfConsistency ? `${highlightStats.kingOfConsistency.value} vitórias` : 'N/A'}
-                subtitle={highlightStats.kingOfConsistency?.name}
-                onSubtitleClick={highlightStats.kingOfConsistency ? () => onViewProfile(highlightStats.kingOfConsistency!.id) : undefined}
-            />
-        </div>
-        <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-poker-dark p-1 rounded-lg">
-                <button onClick={() => setRankingView('lastGame')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${rankingView === 'lastGame' ? 'bg-poker-green text-white' : 'text-poker-gray'}`}>
-                    Último Jogo
-                </button>
-                <button onClick={() => setRankingView('annual')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${rankingView === 'annual' ? 'bg-poker-green text-white' : 'text-poker-gray'}`}>
-                    Anual
-                </button>
-              </div>
-              {rankingView === 'annual' && availableYears.length > 0 && (
-                <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2.5">
-                    {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
-              )}
+    const availableYears = useMemo(() => {
+        if (!sessionHistory) return [];
+        const years = new Set<number>();
+        sessionHistory.forEach(session => {
+            years.add(session.date.toDate().getFullYear());
+        });
+        return Array.from(years).sort((a, b) => b - a);
+    }, [sessionHistory]);
+
+    const [selectedYear, setSelectedYear] = useState<number>(availableYears[0] || new Date().getFullYear());
+
+    useEffect(() => {
+        if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
+            setSelectedYear(availableYears[0]);
+        }
+    }, [availableYears, selectedYear]);
+    
+    // All-time stats for the cards, never changes with filters
+    const allTimeStats = useMemo(() => calculateStats(sessionHistory), [sessionHistory]);
+
+    // Filtered sessions for the list below the cards
+    const filteredSessions = useMemo(() => {
+        if (!sessionHistory) return [];
+        switch (filterType) {
+            case 'ultimoJogo':
+                const sortedHistory = [...sessionHistory].sort((a, b) => b.date.toMillis() - a.date.toMillis());
+                return sortedHistory.length > 0 ? [sortedHistory[0]] : [];
+            case 'anual':
+                return sessionHistory.filter(session => session.date.toDate().getFullYear() === selectedYear);
+            case 'acumulado':
+            default:
+                return sessionHistory;
+        }
+    }, [sessionHistory, filterType, selectedYear]);
+    
+    // Filtered ranking data for the list and graph
+    const filteredRankingData = useMemo(() => calculateStats(filteredSessions), [filteredSessions]);
+
+
+    const getRankColor = (index: number) => {
+        if (index === 0) return 'border-poker-gold bg-poker-gold/10';
+        if (index === 1) return 'border-gray-400 bg-gray-400/10';
+        if (index === 2) return 'border-yellow-700 bg-yellow-700/10';
+        return 'border-transparent';
+    };
+
+    const getRankIcon = (index: number) => {
+        if (index === 0) return <TrophyIcon />;
+        if (index === 1) return <MedalIcon />;
+        if (index === 2) return <MedalIcon />;
+        return <span className="font-bold text-sm">{index + 1}</span>;
+    };
+    
+    if (sessionHistory.length === 0) {
+        return (
+             <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
+                <h2 className="text-2xl font-bold text-white mb-4">Sem dados para exibir</h2>
+                <p className="text-poker-gray mb-6">Nenhum jogo foi salvo no histórico ainda.</p>
             </div>
-        </div>
+        )
+    }
 
-        <h2 className="text-xl md:text-2xl font-bold text-white mb-4">{title}</h2>
-
-        <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-2">
-            {dataToDisplay.length > 0 ? (
-            dataToDisplay.map((playerData, index) => (
-                <div key={playerData.id} className={`flex items-center justify-between bg-poker-dark p-3 rounded-lg border-l-4 ${getPodiumColor(index)}`}>
-                <div className="flex items-center">
-                    <span className="text-xl font-bold text-poker-gray w-8 text-center">{index + 1}º</span>
-                    <PlayerAvatar name={playerData.name} size="md" />
-                    <button onClick={() => onViewProfile(playerData.id)} className="ml-4 text-lg font-semibold text-white hover:text-poker-gold text-left">
-                    {playerData.name}
-                    </button>
+    return (
+        <>
+            <div className="space-y-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                   <StatCard 
+                        icon={<CrownIcon />}
+                        title="Maior Ganhador (Total)"
+                        value={allTimeStats.biggestWinner?.name || '-'}
+                        onValueClick={() => allTimeStats.biggestWinner && onViewProfile(allTimeStats.biggestWinner.id)}
+                        subtitle={`R$ ${allTimeStats.biggestWinner?.profit.toLocaleString('pt-BR') || '0'}`}
+                    />
+                    <StatCard 
+                        icon={<TrophyIcon />}
+                        title="Maior Prêmio (Único)"
+                        value={`R$ ${allTimeStats.biggestPrizePlayer?.biggestWin.toLocaleString('pt-BR') || '0'}`}
+                        subtitle={allTimeStats.biggestPrizePlayer?.name}
+                        onSubtitleClick={() => allTimeStats.biggestPrizePlayer && allTimeStats.biggestPrizePlayer.biggestWinSessionId && onViewSession(allTimeStats.biggestPrizePlayer.biggestWinSessionId)}
+                    />
+                    <StatCard 
+                        icon={<HandIcon />}
+                        title="Total de Partidas"
+                        value={allTimeStats.totalGames}
+                        subtitle={`Acumulado`}
+                    />
+                    <StatCard 
+                        icon={<TrendingUpIcon />}
+                        title="Montante Total"
+                        value={`R$ ${allTimeStats.totalPot.toLocaleString('pt-BR')}`}
+                        subtitle={`Acumulado`}
+                    />
                 </div>
-                <div className={`text-xl font-bold ${playerData.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    R$ {playerData.profit.toLocaleString('pt-BR')}
+                
+                <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
+                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                        <div className="flex border-b border-poker-dark">
+                            <button onClick={() => setFilterType('acumulado')} className={`px-4 py-2 text-sm font-semibold transition-colors ${filterType === 'acumulado' ? 'text-poker-gold border-b-2 border-poker-gold' : 'text-poker-gray hover:text-white'}`}>
+                                Acumulado
+                            </button>
+                            <button onClick={() => setFilterType('anual')} className={`px-4 py-2 text-sm font-semibold transition-colors ${filterType === 'anual' ? 'text-poker-gold border-b-2 border-poker-gold' : 'text-poker-gray hover:text-white'}`}>
+                                Anual
+                            </button>
+                            <button onClick={() => setFilterType('ultimoJogo')} className={`px-4 py-2 text-sm font-semibold transition-colors ${filterType === 'ultimoJogo' ? 'text-poker-gold border-b-2 border-poker-gold' : 'text-poker-gray hover:text-white'}`}>
+                                Último Jogo
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                            {filterType === 'anual' && availableYears.length > 0 && (
+                                <select
+                                    value={selectedYear}
+                                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                    className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 focus:ring-poker-gold focus:border-poker-gold w-full sm:w-auto"
+                                >
+                                    {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
+                                </select>
+                            )}
+                             <button onClick={() => setIsGraphModalOpen(true)} className="flex items-center justify-center w-full sm:w-auto px-3 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
+                               <span className="h-5 w-5 mr-2"><BarChartIcon/></span> Visualizar Gráfico
+                            </button>
+                        </div>
+                    </div>
+                    <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-2">
+                        {filteredRankingData.rankedPlayers.map((player, index) => (
+                            <div key={player.id} className={`flex items-center bg-poker-dark p-3 rounded-lg border-l-4 ${getRankColor(index)}`}>
+                                <div className="w-8 text-center text-poker-gray font-bold flex-shrink-0">{getRankIcon(index)}</div>
+                                <PlayerAvatar name={player.name} />
+                                <div className="ml-4 flex-grow cursor-pointer" onClick={() => onViewProfile(player.id)}>
+                                    <p className="font-semibold text-white hover:text-poker-gold">{player.name}</p>
+                                    <p className="text-xs text-poker-gray">{player.gamesPlayed} jogos</p>
+                                </div>
+                                <div className="text-right ml-4">
+                                    <p className={`font-bold text-lg ${player.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        R$ {player.profit.toLocaleString('pt-BR')}
+                                    </p>
+                                    <p className="text-xs text-poker-gray">{player.winRate.toFixed(1)}% de vitórias</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                </div>
-            ))
-            ) : (
-            <p className="text-center text-poker-gray py-8">
-                {rankingView === 'annual' ? `Nenhum dado de jogo encontrado para ${selectedYear}.` : 'Nenhum dado encontrado para o último jogo.'}
-            </p>
+            </div>
+            {isGraphModalOpen && (
+                <RankingGraphModal
+                    rankedPlayers={filteredRankingData.rankedPlayers}
+                    onClose={() => setIsGraphModalOpen(false)}
+                />
             )}
-        </div>
-        </div>
-    </div>
-  );
+        </>
+    );
 };
 
 export default Ranking;

@@ -1,545 +1,511 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { auth, db } from './firebase';
+import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import { 
+    collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, Timestamp 
+} from 'firebase/firestore';
+
+// Types
+import type { Player, Session, GamePlayer, AppUser, UserRole, ToastState, GameDefaults, Notification } from './types';
+import { View } from './types';
+
+// Components
 import Header from './components/Header';
 import LiveGame from './components/LiveGame';
 import Players from './components/Players';
-import Ranking from './components/Ranking';
 import SessionHistory from './components/SessionHistory';
-import AddHistoricGame from './components/AddHistoricGame';
+import Ranking from './components/Ranking';
 import Auth from './components/Auth';
+import MenuPanel from './components/MenuPanel';
+import Toast from './components/Toast';
 import PlayerProfile from './components/PlayerProfile';
 import Cashier from './components/Cashier';
 import Settings from './components/Settings';
-import Toast from './components/Toast';
-import ClockIcon from './components/icons/ClockIcon';
-import type { Player, GamePlayer, Session, ToastState, AppUser, UserRole, GameDefaults, Notification } from './types';
-import { View } from './types';
-import { db, auth } from './firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, limit } from 'firebase/firestore';
-import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
-import SessionDetailModal from './components/SessionDetailModal';
-import MenuPanel from './components/MenuPanel';
+import SpadeTreeLogo from './components/SpadeTreeLogo';
 
-const parseDateFromName = (name: string): Date => {
-    const parts = name.split('/');
-    if (parts.length !== 3) return new Date(0); // Return an invalid date for sorting purposes
-    const year = 2000 + parseInt(parts[2], 10);
-    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS Date
-    const day = parseInt(parts[0], 10);
-    const date = new Date(year, month, day);
-    // Check for invalid date components
-    if (isNaN(date.getTime()) || date.getDate() !== day || date.getMonth() !== month) {
-        return new Date(0);
-    }
-    return date;
-};
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [currentUserData, setCurrentUserData] = useState<AppUser | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>('visitor');
-  const [isVisitorMode, setIsVisitorMode] = useState(false);
-  const [activeView, setActiveView] = useState<View>(View.Ranking);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [gamePlayers, setGamePlayers] = useState<GamePlayer[]>([]);
-  const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
-  const [currentGameName, setCurrentGameName] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [modalMode, setModalMode] = useState<'edit' | null>(null);
-  const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
-  const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
-  const [toast, setToast] = useState<ToastState>({ message: '', type: 'success', visible: false });
-  const [appUsers, setAppUsers] = useState<AppUser[]>([]);
-  const [gameDefaults, setGameDefaults] = useState<GameDefaults>({ buyIn: 50, rebuy: 50 });
-  const [viewingSession, setViewingSession] = useState<Session | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+    // Auth state: undefined = loading, null = logged out, AppUser = logged in/visitor
+    const [user, setUser] = useState<AppUser | null | undefined>(undefined);
 
-  const isUserAdmin = userRole === 'owner' || userRole === 'admin';
-  const isUserAuthenticatedAndApproved = useMemo(() => user && userRole !== 'pending' && userRole !== 'visitor', [user, userRole]);
+    // Data state
+    const [players, setPlayers] = useState<Player[]>([]);
+    const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
+    const [liveGame, setLiveGame] = useState<Session | null>(null);
+    const [appUsers, setAppUsers] = useState<AppUser[]>([]);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [gameDefaults, setGameDefaults] = useState<GameDefaults>({ buyIn: 50, rebuy: 50 });
 
-  const addNotification = async (message: string, subMessage: string = '', icon: Notification['icon'] = 'game') => {
-    if (!isUserAdmin) return;
-    try {
-      await addDoc(collection(db, 'notifications'), { message, subMessage, icon, timestamp: Timestamp.now() });
-    } catch (error) {
-      console.error("Erro ao adicionar notificação: ", error);
-    }
-  };
+    // UI state
+    const [activeView, setActiveView] = useState<View>(View.Ranking);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [toast, setToast] = useState<ToastState>({ message: '', type: 'success', visible: false });
+    const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
+    const [initialSessionId, setInitialSessionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        setIsVisitorMode(false);
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
+    const isLoading = user === undefined;
+    const userRole: UserRole = user?.role || 'visitor';
+    const isUserAdmin = userRole === 'admin' || userRole === 'owner';
+    const isUserOwner = userRole === 'owner';
+    const isUserAuthenticated = !!user && user.role !== 'visitor';
 
-        if (userDoc.exists()) {
-          const userData = { uid: currentUser.uid, ...userDoc.data() } as AppUser;
-          setUserRole(userData.role);
-          setCurrentUserData(userData);
-        } else {
-            // New user registration logic
-            const appStateRef = doc(db, 'config', 'appState');
-            const appStateDoc = await getDoc(appStateRef);
-            const hasOwner = appStateDoc.exists() && appStateDoc.data().hasOwner === true;
+    // Toast helper
+    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+        setToast({ message, type, visible: true });
+        setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
+    };
 
-            const newRole: UserRole = hasOwner ? 'pending' : 'owner';
-            
-            const newUserDocData: AppUser = {
-                uid: currentUser.uid,
-                name: currentUser.displayName || currentUser.email || 'Novo Usuário',
-                email: currentUser.email || '',
-                role: newRole
-            };
-
-            const batch = writeBatch(db);
-            batch.set(userDocRef, { name: newUserDocData.name, email: newUserDocData.email, role: newUserDocData.role });
-            if (newRole === 'owner') {
-                batch.set(appStateRef, { hasOwner: true });
-            }
-            await batch.commit();
-
-            setUserRole(newRole);
-            setCurrentUserData(newUserDocData);
-
-            if (newRole === 'owner') {
-              showToast('Sua conta de Dono foi configurada!', 'success');
-            } else {
-              addNotification('Novo usuário aguardando aprovação', newUserDocData.name, 'user');
-            }
-        }
-      } else {
-        setUserRole('visitor');
-        setCurrentUserData(null);
-        // Do not set visitor mode here, let the user decide.
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribeAuth();
-  }, []);
-
-  useEffect(() => {
-    let unsubAppUsers: () => void = () => {};
-    let unsubNotifications: () => void = () => {};
-
-    if (userRole === 'owner' || userRole === 'admin') {
-        if(userRole === 'owner') {
-            unsubAppUsers = onSnapshot(query(collection(db, 'users'), orderBy('name')), (snapshot) => {
-                const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
-                setAppUsers(users);
-                if (user) {
-                    const updatedCurrentUser = users.find(u => u.uid === user.uid);
-                    if (updatedCurrentUser) {
-                        setCurrentUserData(updatedCurrentUser);
-                        setUserRole(updatedCurrentUser.role);
-                    }
+    // Auth Listener Effect
+    useEffect(() => {
+        const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data() as Omit<AppUser, 'uid'>;
+                    setUser({ uid: firebaseUser.uid, ...userData });
+                } else {
+                    const newUser: AppUser = {
+                        uid: firebaseUser.uid,
+                        name: firebaseUser.displayName || 'Novo Usuário',
+                        email: firebaseUser.email || '',
+                        role: 'pending',
+                    };
+                    await setDoc(doc(db, 'users', firebaseUser.uid), { name: newUser.name, email: newUser.email, role: newUser.role });
+                    setUser(newUser);
                 }
-            });
-        }
-        
-        const notificationsQuery = query(collection(db, 'notifications'), orderBy('timestamp', 'desc'), limit(25));
-        unsubNotifications = onSnapshot(notificationsQuery, (snapshot) => {
-            const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
-            setNotifications(notifs);
-        });
-
-    } else {
-        setAppUsers([]);
-        setNotifications([]);
-    }
-    return () => { 
-        unsubAppUsers();
-        unsubNotifications();
-    };
-  }, [userRole, user]);
-
-  useEffect(() => {
-    const canFetchData = isUserAuthenticatedAndApproved || isVisitorMode;
-
-    // Clear all data only if user is logged out AND not a visitor
-    if (!canFetchData) {
-        setPlayers([]);
-        setSessionHistory([]);
-        setGamePlayers([]);
-        setCurrentGameName(null);
-        setGameDefaults({ buyIn: 50, rebuy: 50 });
-        return;
-    }
-
-    let unsubPlayers = () => {};
-    let unsubSessions = () => {};
-    let unsubLiveGame = () => {};
-    let unsubConfig = () => {};
-
-    // Fetch all readable data for approved users AND visitors
-    if (canFetchData) {
-        unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
-          setPlayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
-        });
-        
-        const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
-        unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
-          const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
-          
-          sessions.sort((a, b) => {
-              const dateA = a.date ? parseDateFromName(a.name) : new Date(0);
-              const dateB = b.date ? parseDateFromName(b.name) : new Date(0);
-              return dateB.getTime() - dateA.getTime();
-          });
-
-          setSessionHistory(sessions);
-          if (viewingSession) {
-              const updatedSession = sessions.find(s => s.id === viewingSession.id);
-              setViewingSession(updatedSession || null);
-          }
-        });
-
-        unsubLiveGame = onSnapshot(doc(db, 'liveGame', 'current'), (snapshot) => {
-            if (snapshot.exists()) {
-                const liveGameData = snapshot.data();
-                setGamePlayers(liveGameData.players || []);
-                setCurrentGameName(liveGameData.gameName || null);
             } else {
-                setGamePlayers([]);
-                setCurrentGameName(null);
+                setUser(null); // User is logged out
             }
         });
-        unsubConfig = onSnapshot(doc(db, 'config', 'defaults'), (snapshot) => {
-            if (snapshot.exists()) {
-                setGameDefaults(snapshot.data() as GameDefaults);
-            }
-        });
-    }
+        return () => unsubscribeAuth();
+    }, []);
 
-    return () => { 
-      unsubPlayers(); 
-      unsubSessions(); 
-      unsubLiveGame(); 
-      unsubConfig(); 
+    // Data Listeners Effect
+    useEffect(() => {
+        const listeners: (() => void)[] = [];
+        
+        // Only set up listeners if user is determined (not undefined)
+        if (user) {
+            // Public data for visitors and approved users
+            if (user.role === 'visitor' || (user.role !== 'pending' && user.role !== 'visitor')) {
+                 const playersQuery = query(collection(db, 'players'), orderBy('name', 'asc'));
+                listeners.push(onSnapshot(playersQuery, snapshot => {
+                    const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
+                    setPlayers(playersData);
+                }));
+
+                const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
+                listeners.push(onSnapshot(sessionsQuery, snapshot => {
+                    const sessionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
+                    setSessionHistory(sessionsData);
+                }));
+
+                const liveGameQuery = query(collection(db, 'live-game'));
+                listeners.push(onSnapshot(liveGameQuery, snapshot => {
+                    if (!snapshot.empty) {
+                        const liveGameDoc = snapshot.docs[0];
+                        setLiveGame({ id: liveGameDoc.id, ...liveGameDoc.data() } as Session);
+                    } else {
+                        setLiveGame(null);
+                    }
+                }));
+
+                listeners.push(onSnapshot(doc(db, 'config', 'gameDefaults'), (doc) => {
+                    if (doc.exists()) {
+                        setGameDefaults(doc.data() as GameDefaults);
+                    }
+                }));
+            }
+
+            // Admin/Owner-only listeners
+            if (user.role === 'owner' || user.role === 'admin') {
+                const notifsQuery = query(collection(db, 'notifications'), orderBy('timestamp', 'desc'));
+                listeners.push(onSnapshot(notifsQuery, snapshot => {
+                    const notifsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+                    setNotifications(notifsData);
+                }));
+            }
+            
+            // Owner-only listeners
+            if (user.role === 'owner') {
+                const usersQuery = query(collection(db, 'users'), orderBy('name', 'asc'));
+                listeners.push(onSnapshot(usersQuery, snapshot => {
+                    const usersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
+                    setAppUsers(usersData);
+                }));
+            }
+        } else {
+            // Clear all data if user is logged out (null) or initial state (undefined)
+            setPlayers([]);
+            setSessionHistory([]);
+            setLiveGame(null);
+            setAppUsers([]);
+            setNotifications([]);
+        }
+
+        // Cleanup function
+        return () => {
+            listeners.forEach(unsubscribe => unsubscribe());
+        };
+    }, [user]);
+
+
+    // Handlers
+    const handleLogout = useCallback(async () => {
+        await signOut(auth);
+        setUser(null);
+        setActiveView(View.Ranking);
+    }, []);
+
+    const handleEnterAsVisitor = () => {
+        setUser({ uid: 'visitor', name: 'Visitante', email: '', role: 'visitor' });
     };
-}, [isUserAuthenticatedAndApproved, isVisitorMode, viewingSession]);
 
+    const handleAddPlayer = useCallback(async (playerData: Omit<Player, 'id' | 'isActive'>) => {
+        try {
+            await addDoc(collection(db, 'players'), { ...playerData, isActive: true });
+            showToast('Jogador adicionado com sucesso!');
+        } catch (error) {
+            console.error(error);
+            showToast('Erro ao adicionar jogador.', 'error');
+        }
+    }, []);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type, visible: true });
-    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
-  };
+    const handleUpdatePlayer = useCallback(async (player: Player) => {
+        try {
+            const playerRef = doc(db, 'players', player.id);
+            await updateDoc(playerRef, { ...player });
+            showToast('Jogador atualizado com sucesso!');
+        } catch (error) {
+            console.error(error);
+            showToast('Erro ao atualizar jogador.', 'error');
+        }
+    }, []);
 
-  const handleAddPlayer = async (player: Omit<Player, 'id' | 'isActive'>) => {
-    if (!isUserAdmin) return;
-    try {
-      await addDoc(collection(db, 'players'), { ...player, isActive: true });
-      addNotification('Novo jogador cadastrado', player.name, 'user');
-      showToast('Jogador adicionado com sucesso!');
-    } catch (e) { showToast('Erro ao adicionar jogador.', 'error'); }
-  };
-  const handleUpdatePlayer = async (updatedPlayer: Player) => {
-    if (!isUserAdmin) return;
-    const { id, ...playerData } = updatedPlayer;
-    try {
-      await updateDoc(doc(db, 'players', id), playerData);
-      showToast('Jogador atualizado com sucesso!');
-    } catch (e) { showToast('Erro ao atualizar jogador.', 'error'); }
-  };
-  const handleDeletePlayer = async (playerId: string) => {
-    if (!isUserAdmin) return;
-    if (sessionHistory.some(s => s.players.some(p => p.id === playerId))) {
-      alert("Este jogador não pode ser excluído pois possui histórico. Considere marcá-lo como inativo.");
-      return;
-    }
-    if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
-      try {
-        await deleteDoc(doc(db, 'players', playerId));
-        showToast('Jogador excluído com sucesso!');
-      } catch (e) { showToast('Erro ao excluir jogador.', 'error'); }
-    }
-  };
-  const handleTogglePlayerStatus = async (playerId: string) => {
-    if (!isUserAdmin) return;
-    const player = players.find(p => p.id === playerId);
-    if (player) await updateDoc(doc(db, 'players', playerId), { isActive: !player.isActive });
-  };
-  const handleStartGame = async (playerIds: string[]) => {
-    if (!isUserAdmin) return;
-    const selectedPlayers = players.filter(p => playerIds.includes(p.id));
-    const newGamePlayers = selectedPlayers.map(p => ({
-      ...p, buyIn: gameDefaults.buyIn, rebuys: 0, totalInvested: gameDefaults.buyIn, finalChips: 0, paid: false
-    }));
-    const gameName = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-    await setDoc(doc(db, 'liveGame', 'current'), { gameName: gameName, players: newGamePlayers });
-    setActiveView(View.LiveGame);
-  };
-  const handleAddPlayerToLiveGame = async (playerId: string) => {
-    if (!isUserAdmin) return;
-    const playerToAdd = players.find(p => p.id === playerId);
-    if (playerToAdd) {
-        const newGamePlayer: GamePlayer = { ...playerToAdd, buyIn: gameDefaults.buyIn, rebuys: 0, totalInvested: gameDefaults.buyIn, finalChips: 0, paid: false };
-        await updateDoc(doc(db, 'liveGame', 'current'), { players: [...gamePlayers, newGamePlayer] });
-    }
-  };
-  const handleAddRebuy = async (playerId: string) => {
-    if (!isUserAdmin) return;
-    const updatedPlayers = gamePlayers.map(p => p.id === playerId ? { ...p, rebuys: p.rebuys + 1, totalInvested: p.totalInvested + gameDefaults.rebuy } : p);
-    await updateDoc(doc(db, 'liveGame', 'current'), { players: updatedPlayers });
-  };
-  const handleRemoveRebuy = async (playerId: string) => {
-    if (!isUserAdmin) return;
-    const updatedPlayers = gamePlayers.map(p => p.id === playerId && p.rebuys > 0 ? { ...p, rebuys: p.rebuys - 1, totalInvested: p.totalInvested - gameDefaults.rebuy } : p);
-    await updateDoc(doc(db, 'liveGame', 'current'), { players: updatedPlayers });
-  };
-  const handleUpdateFinalChips = async (playerId: string, chips: number) => {
-    if (!isUserAdmin) return;
-    const updatedPlayers = gamePlayers.map(p => (p.id === playerId ? { ...p, finalChips: chips } : p));
-    await updateDoc(doc(db, 'liveGame', 'current'), { players: updatedPlayers });
-  };
-  const handleUpdateGameName = async (newName: string) => {
-    if (!isUserAdmin) return;
-    await updateDoc(doc(db, 'liveGame', 'current'), { gameName: newName });
-  };
-  const handleEndGame = async (): Promise<void> => {
-    if (!isUserAdmin || !currentGameName) return;
-    
-    if(gamePlayers.length < 2) {
-      showToast('É necessário ter pelo menos 2 jogadores para salvar o jogo.', 'error');
-      return;
-    }
-    
-    const gameDate = parseDateFromName(currentGameName);
-    if (isNaN(gameDate.getTime()) || gameDate.getTime() === 0) {
-        showToast('Nome do jogo (data) inválido. Corrija para DD/MM/AA antes de salvar.', 'error');
-        return;
-    }
-    const dateTimestamp = Timestamp.fromDate(gameDate);
+    const handleDeletePlayer = useCallback(async (playerId: string) => {
+        if (window.confirm('Tem certeza que deseja excluir este jogador? Esta ação não pode ser desfeita.')) {
+            try {
+                await deleteDoc(doc(db, 'players', playerId));
+                showToast('Jogador excluído com sucesso!');
+            } catch (error) {
+                console.error(error);
+                showToast('Erro ao excluir jogador.', 'error');
+            }
+        }
+    }, []);
 
-    const gamePlayersWithPayment = gamePlayers.map(p => ({ ...p, paid: false }));
+    const handleTogglePlayerStatus = useCallback(async (playerId: string) => {
+        const player = players.find(p => p.id === playerId);
+        if (player) {
+            try {
+                await updateDoc(doc(db, 'players', playerId), { isActive: !player.isActive });
+                showToast(`Status de ${player.name} atualizado.`);
+            } catch (error) {
+                console.error(error);
+                showToast('Erro ao atualizar status.', 'error');
+            }
+        }
+    }, [players]);
 
-    try {
-      await addDoc(collection(db, 'sessions'), { name: currentGameName, date: dateTimestamp, players: gamePlayersWithPayment });
-      await deleteDoc(doc(db, 'liveGame', 'current'));
-      addNotification('Jogo salvo no histórico!', `Jogo de ${currentGameName}`, 'game');
-      showToast('Jogo salvo no histórico com sucesso!');
-      setActiveView(View.SessionHistory);
-    } catch (e) { 
-      showToast('Erro ao salvar o jogo.', 'error');
-      throw e;
-    }
-  };
-  const handleCancelGame = async () => {
-    if (!isUserAdmin) return;
-    if (window.confirm("Tem certeza? O progresso será perdido.")) {
-      await deleteDoc(doc(db, 'liveGame', 'current'));
-      setActiveView(View.Players);
-    }
-  };
-  const handleSaveHistoricGame = async (session: Omit<Session, 'id'>) => {
-    if (!isUserAdmin || modalMode !== 'edit' || !sessionToEdit) {
-        setModalMode(null);
-        setSessionToEdit(null);
-        return;
-    }
-    try {
-        await updateDoc(doc(db, 'sessions', sessionToEdit.id), session);
-        showToast('Jogo histórico atualizado!');
-    } catch (e) {
-        showToast('Erro ao atualizar jogo histórico.', 'error');
-    } finally {
-        setModalMode(null);
-        setSessionToEdit(null);
-    }
-  };
-  const handleOpenEditModal = (sessionId: string) => {
-    if (!isUserAdmin) return;
-    const session = sessionHistory.find(s => s.id === sessionId);
-    if (session) { 
-      setSessionToEdit(session);
-      setModalMode('edit');
-      setViewingSession(null);
-    }
-  };
-  const handleDeleteSession = async (sessionId: string) => {
-    if (!isUserAdmin) return;
-    if (window.confirm("Excluir este jogo do histórico?")) {
-      try {
-        await deleteDoc(doc(db, 'sessions', sessionId));
-        showToast('Jogo excluído do histórico.', 'success');
-        setViewingSession(null);
-      } catch (e) { showToast('Erro ao excluir jogo.', 'error'); }
-    }
-  };
-  const handleTogglePaymentStatus = async (sessionId: string, playerId: string) => {
-    if (!isUserAdmin) return;
-    const session = sessionHistory.find(s => s.id === sessionId);
-    if (session) {
-        const updatedPlayers = session.players.map(p => p.id === playerId ? { ...p, paid: !p.paid } : p);
-        await updateDoc(doc(db, 'sessions', sessionId), { players: updatedPlayers });
-    }
-  };
-  const handleSettlePlayerDebts = async (playerId: string) => {
-    if (!isUserAdmin) return;
-    if (window.confirm(`Quitar todas as pendências de ${players.find(p => p.id === playerId)?.name}?`)) {
-      const batch = writeBatch(db);
-      sessionHistory.forEach(session => {
-        let sessionUpdated = false;
-        const updatedPlayers = session.players.map(p => {
-          if (p.id === playerId && !p.paid && (p.finalChips - p.totalInvested) < 0) {
-            sessionUpdated = true; return { ...p, paid: true };
-          }
-          return p;
+    const handleStartGame = useCallback(async (playerIds: string[]) => {
+        if (liveGame) {
+            showToast('Já existe um jogo ativo.', 'error');
+            return;
+        }
+        const gamePlayers: GamePlayer[] = players
+            .filter(p => playerIds.includes(p.id))
+            .map(p => ({
+                ...p,
+                buyIn: gameDefaults.buyIn,
+                rebuys: 0,
+                totalInvested: gameDefaults.buyIn,
+                finalChips: 0,
+                paid: false
+            }));
+
+        const today = new Date();
+        const gameName = today.toLocaleDateString('pt-BR', { year: '2-digit', month: '2-digit', day: '2-digit' });
+
+        try {
+            await setDoc(doc(db, 'live-game', 'active-session'), {
+                name: gameName,
+                date: Timestamp.now(),
+                players: gamePlayers
+            });
+            setActiveView(View.LiveGame);
+            showToast('Novo jogo iniciado!');
+        } catch (error) {
+            console.error(error);
+            showToast('Erro ao iniciar jogo.', 'error');
+        }
+    }, [liveGame, players, gameDefaults]);
+
+    const handleAddRebuy = useCallback(async (playerId: string) => {
+        if (!liveGame) return;
+        const updatedPlayers = liveGame.players.map(p => {
+            if (p.id === playerId) {
+                const rebuys = p.rebuys + 1;
+                const totalInvested = p.buyIn + (rebuys * gameDefaults.rebuy);
+                return { ...p, rebuys, totalInvested };
+            }
+            return p;
         });
-        if (sessionUpdated) batch.update(doc(db, 'sessions', session.id), { players: updatedPlayers });
-      });
-      try {
-        await batch.commit();
-        showToast('Dívidas quitadas com sucesso!');
-      } catch (e) { showToast('Erro ao quitar dívidas.', 'error'); }
+        await updateDoc(doc(db, 'live-game', liveGame.id), { players: updatedPlayers });
+    }, [liveGame, gameDefaults]);
+
+    const handleRemoveRebuy = useCallback(async (playerId: string) => {
+        if (!liveGame) return;
+        const updatedPlayers = liveGame.players.map(p => {
+            if (p.id === playerId && p.rebuys > 0) {
+                const rebuys = p.rebuys - 1;
+                const totalInvested = p.buyIn + (rebuys * gameDefaults.rebuy);
+                return { ...p, rebuys, totalInvested };
+            }
+            return p;
+        });
+        await updateDoc(doc(db, 'live-game', liveGame.id), { players: updatedPlayers });
+    }, [liveGame, gameDefaults]);
+    
+    const handleUpdateFinalChips = useCallback(async (playerId: string, chips: number) => {
+        if (!liveGame) return;
+        const updatedPlayers = liveGame.players.map(p => p.id === playerId ? { ...p, finalChips: chips } : p);
+        await updateDoc(doc(db, 'live-game', liveGame.id), { players: updatedPlayers });
+    }, [liveGame]);
+
+    const handleUpdateGameName = useCallback(async (name: string) => {
+        if (!liveGame) return;
+        await updateDoc(doc(db, 'live-game', liveGame.id), { name });
+    }, [liveGame]);
+
+    const handleEndGame = useCallback(async () => {
+        if (!liveGame) return;
+        if (window.confirm('Tem certeza que deseja encerrar e salvar o jogo no histórico?')) {
+            try {
+                // Mark debts as paid or not
+                const finalPlayers = liveGame.players.map(p => ({
+                    ...p,
+                    paid: false // All players start as not paid
+                }));
+
+                await addDoc(collection(db, 'sessions'), { ...liveGame, players: finalPlayers, date: Timestamp.now() });
+                await deleteDoc(doc(db, 'live-game', liveGame.id));
+                showToast('Jogo salvo no histórico!');
+            } catch (error) {
+                console.error(error);
+                showToast('Erro ao salvar jogo.', 'error');
+            }
+        }
+    }, [liveGame]);
+
+    const handleCancelGame = useCallback(async () => {
+        if (!liveGame) return;
+        if (window.confirm('Tem certeza que deseja cancelar o jogo? Todos os dados serão perdidos.')) {
+            try {
+                await deleteDoc(doc(db, 'live-game', liveGame.id));
+                showToast('Jogo cancelado.');
+            } catch (error) {
+                console.error(error);
+                showToast('Erro ao cancelar jogo.', 'error');
+            }
+        }
+    }, [liveGame]);
+
+    const handleAddPlayerToGame = useCallback(async (playerId: string) => {
+        if (!liveGame) return;
+        const playerToAdd = players.find(p => p.id === playerId);
+        if (playerToAdd) {
+            const newGamePlayer: GamePlayer = {
+                ...playerToAdd,
+                buyIn: gameDefaults.buyIn,
+                rebuys: 0,
+                totalInvested: gameDefaults.buyIn,
+                finalChips: 0,
+                paid: false,
+            };
+            const updatedPlayers = [...liveGame.players, newGamePlayer];
+            await updateDoc(doc(db, 'live-game', liveGame.id), { players: updatedPlayers });
+            showToast(`${playerToAdd.name} foi adicionado ao jogo.`);
+        }
+    }, [liveGame, players, gameDefaults]);
+    
+    const handleEditHistoricGame = useCallback(async (session: Session) => {
+        try {
+            const sessionRef = doc(db, 'sessions', session.id);
+            const parts = session.name.split('/');
+            const date = new Date(parseInt(`20${parts[2]}`, 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+            const newTimestamp = Timestamp.fromDate(date);
+
+            await updateDoc(sessionRef, { ...session, date: newTimestamp });
+            showToast('Jogo histórico atualizado com sucesso!');
+        } catch (error) {
+            console.error(error);
+            showToast('Erro ao atualizar o jogo.', 'error');
+        }
+    }, []);
+
+    const handleSettleDebts = useCallback(async (playerId: string) => {
+        const player = players.find(p => p.id === playerId);
+        if (player && window.confirm(`Tem certeza que deseja quitar todas as dívidas de ${player.name}?`)) {
+            try {
+                const batch = writeBatch(db);
+                const sessionsToUpdate = sessionHistory.filter(s => s.players.some(p => p.id === playerId && !p.paid));
+                
+                sessionsToUpdate.forEach(session => {
+                    const updatedPlayers = session.players.map(p => p.id === playerId ? { ...p, paid: true } : p);
+                    batch.update(doc(db, 'sessions', session.id), { players: updatedPlayers });
+                });
+                await batch.commit();
+                showToast('Dívidas quitadas com sucesso!');
+            } catch (error) {
+                console.error(error);
+                showToast('Erro ao quitar dívidas.', 'error');
+            }
+        }
+    }, [players, sessionHistory]);
+
+    const handleUpdateUserRole = useCallback(async (uid: string, role: UserRole) => {
+        try {
+            await updateDoc(doc(db, 'users', uid), { role });
+            showToast('Cargo do usuário atualizado.');
+        } catch (error) {
+            console.error(error);
+            showToast('Erro ao atualizar cargo.', 'error');
+        }
+    }, []);
+
+    const handleSaveDefaults = useCallback(async (defaults: GameDefaults) => {
+        try {
+            await setDoc(doc(db, 'config', 'gameDefaults'), defaults);
+            showToast('Valores padrão salvos com sucesso!');
+        } catch (error) {
+            console.error(error);
+            showToast('Erro ao salvar valores padrão.', 'error');
+        }
+    }, []);
+
+    const handleAddUser = useCallback(async (userData: Omit<AppUser, 'uid'>, password: string): Promise<boolean> => {
+        try {
+            const tempUserCred = await createUserWithEmailAndPassword(auth, userData.email, password);
+            await setDoc(doc(db, 'users', tempUserCred.user.uid), {
+                name: userData.name,
+                email: userData.email,
+                role: userData.role,
+            });
+            showToast('Usuário criado com sucesso!');
+            return true;
+        } catch (error: any) {
+            console.error(error);
+            showToast(`Erro ao criar usuário: ${error.message}`, 'error');
+            return false;
+        }
+    }, []);
+    
+    const handleDeleteUser = useCallback(async (uid: string) => {
+        if (window.confirm('Excluir este usuário também o removerá da autenticação do Firebase. Esta ação é irreversível. Continuar?')) {
+            try {
+                await deleteDoc(doc(db, 'users', uid));
+                showToast('Usuário excluído do banco de dados. Remova-o da Autenticação do Firebase manualmente.');
+            } catch (error) {
+                console.error(error);
+                showToast('Erro ao excluir usuário.', 'error');
+            }
+        }
+    }, []);
+
+    // View Profile / Session
+    const handleViewProfile = (playerId: string) => {
+        setViewingPlayerId(playerId);
+        setActiveView(View.PlayerProfile);
+    };
+
+    const handleViewSession = (sessionId: string) => {
+        setInitialSessionId(sessionId);
+        setActiveView(View.SessionHistory);
+    };
+
+    const renderView = () => {
+        if (activeView === View.PlayerProfile && viewingPlayerId) {
+            return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => { setViewingPlayerId(null); setActiveView(View.Ranking); }} />;
+        }
+
+        switch(activeView) {
+            case View.LiveGame:
+                return <LiveGame isUserAdmin={isUserAdmin} players={liveGame?.players || []} allPlayers={players} gameName={liveGame?.name || null} onAddRebuy={handleAddRebuy} onRemoveRebuy={handleRemoveRebuy} onUpdateFinalChips={handleUpdateFinalChips} onUpdateGameName={handleUpdateGameName} onEndGame={handleEndGame} onCancelGame={handleCancelGame} onGoToPlayers={() => setActiveView(View.Players)} onAddPlayerToGame={handleAddPlayerToGame} onViewProfile={handleViewProfile} gameDefaults={gameDefaults} />;
+            case View.Players:
+                return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onStartGame={handleStartGame} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
+            case View.SessionHistory:
+                return <SessionHistory isUserAdmin={isUserAdmin} sessionHistory={sessionHistory} players={players} onEditHistoricGame={handleEditHistoricGame} onViewProfile={handleViewProfile} initialSessionId={initialSessionId} onClearInitialSession={() => setInitialSessionId(null)} />;
+            case View.Ranking:
+                return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
+            case View.Cashier:
+                return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettleDebts} onViewProfile={handleViewProfile} />;
+            case View.Settings:
+                 return isUserAuthenticated && isUserAdmin ? <Settings isUserOwner={isUserOwner} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} /> : null;
+            default:
+                return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
+        }
+    };
+    
+    if (isLoading) {
+        return (
+            <div className="bg-poker-dark min-h-screen flex items-center justify-center">
+                <SpadeTreeLogo className="h-32 w-32 animate-pulse" />
+            </div>
+        );
     }
-  };
-  const handleViewProfile = (playerId: string) => {
-    setViewingPlayerId(playerId);
-    setActiveView(View.PlayerProfile);
-    setViewingSession(null);
-  };
-  const handleLogout = () => {
-    signOut(auth);
-    setIsVisitorMode(false);
-  };
-  const handleUpdateUserRole = async (uid: string, role: UserRole) => {
-      if (userRole !== 'owner') return;
-      const userToUpdate = appUsers.find(u => u.uid === uid);
-      if (!userToUpdate) return;
-      try {
-          await updateDoc(doc(db, 'users', uid), { role });
-          addNotification('Cargo de usuário atualizado', `${userToUpdate.name} é agora ${role}`, 'role');
-          showToast('Cargo do usuário atualizado!');
-      } catch { showToast('Erro ao atualizar cargo.', 'error'); }
-  };
-  const handleSaveDefaults = async (defaults: GameDefaults) => {
-      if (!isUserAdmin) return;
-      try {
-          await setDoc(doc(db, 'config', 'defaults'), defaults);
-          showToast('Valores padrão salvos com sucesso!');
-      } catch { showToast('Erro ao salvar configurações.', 'error'); }
-  };
-  
-  const handleAddUser = async (userData: Omit<AppUser, 'uid'>, password: string): Promise<boolean> => {
-      if (userRole !== 'owner') return false;
-      try {
-          const tempUserCredential = await createUserWithEmailAndPassword(auth, userData.email, password);
-          await setDoc(doc(db, 'users', tempUserCredential.user.uid), { name: userData.name, email: userData.email, role: userData.role });
-          addNotification('Novo usuário criado', `${userData.name} (${userData.role})`, 'user');
-          showToast('Usuário criado com sucesso!', 'success');
-          return true;
-      } catch (e: any) {
-          if (e.code === 'auth/email-already-in-use') {
-              showToast('Este e-mail já está em uso.', 'error');
-          } else {
-              showToast('Erro ao criar usuário.', 'error');
-          }
-          return false;
-      }
-  };
 
-  const handleDeleteUser = async (uid: string) => {
-      if (userRole !== 'owner') return;
-      const confirmationMessage = "Tem certeza que deseja excluir este usuário?\n\nEsta ação remove os dados do usuário do app (Firestore), mas NÃO exclui a conta de login (Firebase Auth).\n\nPara exclusão completa, remova a conta manualmente no console do Firebase.";
-      if (window.confirm(confirmationMessage)) {
-          try {
-              await deleteDoc(doc(db, 'users', uid));
-              showToast('Usuário removido do banco de dados.');
-          } catch {
-              showToast('Erro ao remover usuário.', 'error');
-          }
-      }
-  };
-
-  const handleViewSession = (sessionId: string) => {
-    const session = sessionHistory.find(s => s.id === sessionId);
-    if (session) {
-      setViewingSession(session);
+    if (!user) {
+        return <Auth onEnterAsVisitor={handleEnterAsVisitor} />;
     }
-  };
-
-  const handleCloseSessionModal = () => {
-    setViewingSession(null);
-  };
-
-  const renderContent = () => {
-    switch (activeView) {
-      case View.LiveGame: return <LiveGame isUserAdmin={isUserAdmin} players={gamePlayers} allPlayers={players} gameName={currentGameName} onAddRebuy={handleAddRebuy} onRemoveRebuy={handleRemoveRebuy} onUpdateFinalChips={handleUpdateFinalChips} onUpdateGameName={handleUpdateGameName} onEndGame={handleEndGame} onCancelGame={handleCancelGame} onGoToPlayers={() => setActiveView(View.Players)} onAddPlayerToGame={handleAddPlayerToLiveGame} onViewProfile={handleViewProfile} gameDefaults={gameDefaults} />;
-      case View.Players: return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onStartGame={handleStartGame} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
-      case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onViewSession={handleViewSession} />;
-      case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
-      case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Ranking)} />;
-      case View.Cashier: return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettlePlayerDebts} onViewProfile={handleViewProfile} />;
-      case View.Settings: return <Settings isUserOwner={userRole === 'owner'} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} />;
-      default: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
+    
+    if (user.role === 'pending') {
+        return (
+            <div className="bg-poker-dark min-h-screen flex flex-col items-center justify-center text-center p-4">
+                <h1 className="text-2xl font-bold text-white mb-4">Aguardando Aprovação</h1>
+                <p className="text-poker-gray mb-6">Sua conta está pendente de aprovação por um administrador.</p>
+                <button onClick={handleLogout} className="px-6 py-2 text-white bg-poker-gold hover:bg-poker-gold/80 font-semibold rounded-lg text-sm">
+                    Sair
+                </button>
+            </div>
+        );
     }
-  };
-  
-  if (isLoading) {
-    return <div className="flex justify-center items-center h-screen bg-poker-dark"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-poker-gold"></div><p className="ml-4 text-white text-lg">Carregando...</p></div>;
-  }
 
-  if (!user && !isVisitorMode) {
-    return <Auth onEnterAsVisitor={() => setIsVisitorMode(true)} />;
-  }
-  
-  if (userRole === 'pending') {
-      return (
-         <div className="min-h-screen bg-poker-dark">
-            <Header activeView={activeView} setActiveView={() => {}} onOpenMenu={() => setIsMenuOpen(true)} isUserAuthenticated={isUserAuthenticatedAndApproved} userRole={userRole}/>
-            <main className="container mx-auto p-4 md:p-8 flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)'}}>
-                <div className="bg-poker-light p-10 rounded-lg shadow-xl text-center max-w-lg">
-                    <div className="text-poker-gold mx-auto mb-4 w-16 h-16"><ClockIcon /></div>
-                    <h2 className="text-2xl font-bold text-white mb-4">Acesso Pendente</h2>
-                    <p className="text-poker-gray">Sua conta foi criada com sucesso e está aguardando aprovação do Dono do clube. <br />Você será notificado quando seu acesso for liberado.</p>
-                </div>
+    return (
+        <div className="bg-poker-dark min-h-screen text-white">
+            <Header
+                isUserAuthenticated={isUserAuthenticated}
+                activeView={activeView}
+                setActiveView={setActiveView}
+                onOpenMenu={() => setIsMenuOpen(true)}
+                userRole={userRole}
+                onLogout={handleLogout}
+            />
+            <main className="container mx-auto p-2 sm:p-4 md:p-8">
+                {renderView()}
             </main>
-         </div>
-      );
-  }
-
-  return (
-    <div className="min-h-screen bg-poker-dark">
-      <Header 
-        activeView={activeView} 
-        setActiveView={setActiveView} 
-        onOpenMenu={() => setIsMenuOpen(true)} 
-        isUserAuthenticated={isUserAuthenticatedAndApproved || isVisitorMode} 
-        userRole={userRole}
-      />
-       <MenuPanel 
-        isOpen={isMenuOpen} 
-        onClose={() => setIsMenuOpen(false)}
-        user={currentUserData}
-        userRole={userRole}
-        notifications={notifications}
-        onGoToSettings={() => { setActiveView(View.Settings); setIsMenuOpen(false); }}
-        onLogout={() => { setIsMenuOpen(false); handleLogout(); }}
-        isUserAdmin={isUserAdmin}
-      />
-      <main className="container mx-auto p-4 md:p-8">
-        <div key={activeView} className="animate-fade-in">{renderContent()}</div>
-      </main>
-      {modalMode === 'edit' && isUserAdmin && (
-        <AddHistoricGame players={players} onSave={handleSaveHistoricGame} onClose={() => { setModalMode(null); setSessionToEdit(null); }} sessionToEdit={sessionToEdit} />
-      )}
-      {viewingSession && (
-        <SessionDetailModal
-          isUserAdmin={isUserAdmin}
-          session={viewingSession}
-          onClose={handleCloseSessionModal}
-          onEditGame={handleOpenEditModal}
-          onDeleteGame={handleDeleteSession}
-          onTogglePayment={handleTogglePaymentStatus}
-          onViewProfile={handleViewProfile}
-        />
-      )}
-      <Toast message={toast.message} type={toast.type} visible={toast.visible} />
-      <style>{`.animate-fade-in { animation: fadeIn 0.5s ease-in-out; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
-    </div>
-  );
+            <MenuPanel
+                isOpen={isMenuOpen}
+                onClose={() => setIsMenuOpen(false)}
+                user={user}
+                userRole={userRole}
+                notifications={notifications}
+                isUserAdmin={isUserAdmin}
+                onGoToSettings={() => {
+                    setActiveView(View.Settings);
+                    setIsMenuOpen(false);
+                }}
+                onLogout={() => {
+                    handleLogout();
+                    setIsMenuOpen(false);
+                }}
+            />
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                visible={toast.visible}
+            />
+        </div>
+    );
 };
 
 export default App;
