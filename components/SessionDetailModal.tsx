@@ -84,7 +84,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                         </tbody>
                         </table>
                     </div>
-                    <div className="w-full h-96">
+                    <div className="relative w-full h-96 min-h-[24rem]">
                         <h4 className="text-lg font-semibold text-white mb-3">Gráfico de Desempenho</h4>
                          {rankedPlayers && rankedPlayers.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
@@ -110,7 +110,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                 </div>
 
                  <div className="p-3 border-t border-poker-dark flex justify-end items-center">
-                    <button onClick={onClose} className="w-full sm:w-auto px-6 py-2 text-sm font-semibold bg-red-800/50 text-red-400 hover:bg-red-800 hover:text-white rounded-lg transition-colors">
+                    <button onClick={onClose} className="w-full sm:w-auto px-6 py-3 text-sm font-semibold bg-red-700 text-white hover:bg-red-600 rounded-lg transition-colors">
                         Fechar
                     </button>
                 </div>

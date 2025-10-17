@@ -14,7 +14,8 @@ import ClockIcon from './components/icons/ClockIcon';
 import type { Player, GamePlayer, Session, ToastState, AppUser, UserRole, GameDefaults, Notification } from './types';
 import { View } from './types';
 import { db, auth } from './firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, getDocs, where, limit } from 'firebase/firestore';
+// FIX: Import 'limit' from 'firebase/firestore' to be used in a query.
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, limit } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 import SessionDetailModal from './components/SessionDetailModal';
 import MenuPanel from './components/MenuPanel';
@@ -79,26 +80,35 @@ const App: React.FC = () => {
           setUserRole(userData.role);
           setCurrentUserData(userData);
         } else {
-          const usersRef = collection(db, 'users');
-          const ownerQuery = query(usersRef, where("role", "==", "owner"));
-          const ownerSnapshot = await getDocs(ownerQuery);
-          const newRole: UserRole = ownerSnapshot.empty ? 'owner' : 'pending';
-          const newUserDocData: AppUser = {
-              uid: currentUser.uid,
-              name: currentUser.displayName || currentUser.email || 'Novo Usuário',
-              email: currentUser.email || '',
-              role: newRole
-          };
+            // New user registration logic
+            const appStateRef = doc(db, 'config', 'appState');
+            const appStateDoc = await getDoc(appStateRef);
+            const hasOwner = appStateDoc.exists() && appStateDoc.data().hasOwner === true;
 
-          await setDoc(userDocRef, { name: newUserDocData.name, email: newUserDocData.email, role: newUserDocData.role });
-          setUserRole(newRole);
-          setCurrentUserData(newUserDocData);
+            const newRole: UserRole = hasOwner ? 'pending' : 'owner';
+            
+            const newUserDocData: AppUser = {
+                uid: currentUser.uid,
+                name: currentUser.displayName || currentUser.email || 'Novo Usuário',
+                email: currentUser.email || '',
+                role: newRole
+            };
 
-          if (newRole === 'owner') {
-            showToast('Sua conta de Dono foi configurada!', 'success');
-          } else {
-            addNotification('Novo usuário aguardando aprovação', newUserDocData.name, 'user');
-          }
+            const batch = writeBatch(db);
+            batch.set(userDocRef, { name: newUserDocData.name, email: newUserDocData.email, role: newUserDocData.role });
+            if (newRole === 'owner') {
+                batch.set(appStateRef, { hasOwner: true });
+            }
+            await batch.commit();
+
+            setUserRole(newRole);
+            setCurrentUserData(newUserDocData);
+
+            if (newRole === 'owner') {
+              showToast('Sua conta de Dono foi configurada!', 'success');
+            } else {
+              addNotification('Novo usuário aguardando aprovação', newUserDocData.name, 'user');
+            }
         }
       } else {
         setUserRole('visitor');
@@ -146,7 +156,9 @@ const App: React.FC = () => {
   }, [userRole, user]);
 
   useEffect(() => {
-    if (!isUserAuthenticatedAndApproved && !isVisitorMode) {
+    // Only fetch data if the user is properly authenticated and approved.
+    // Visitors will see the UI shell but no sensitive data to prevent permission errors and data leaks.
+    if (!isUserAuthenticatedAndApproved) {
       setPlayers([]);
       setSessionHistory([]);
       setGamePlayers([]);
@@ -162,7 +174,6 @@ const App: React.FC = () => {
     const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
       const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
       
-      // Client-side sort to guarantee order based on game name (DD/MM/YY)
       sessions.sort((a, b) => {
           const dateA = parseDateFromName(a.name);
           const dateB = parseDateFromName(b.name);
@@ -203,7 +214,7 @@ const App: React.FC = () => {
       unsubLiveGame(); 
       unsubConfig(); 
     };
-}, [isUserAuthenticatedAndApproved, isVisitorMode, viewingSession]);
+}, [isUserAuthenticatedAndApproved, viewingSession]);
 
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -292,8 +303,6 @@ const App: React.FC = () => {
     }
     const dateTimestamp = Timestamp.fromDate(gameDate);
 
-    // Ao salvar um novo jogo, todos os jogadores são marcados com pagamento pendente.
-    // O admin/dono pode então confirmar os pagamentos na tela de detalhes do jogo.
     const gamePlayersWithPayment = gamePlayers.map(p => ({ ...p, paid: false }));
 
     try {
