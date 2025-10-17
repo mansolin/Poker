@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from '../types';
+import { View, UserRole } from '../types';
 import PokerChipIcon from './icons/PokerChipIcon';
 import UsersIcon from './icons/UsersIcon';
 import TrophyIcon from './icons/TrophyIcon';
@@ -13,9 +13,10 @@ interface HeaderProps {
   activeView: View;
   setActiveView: (view: View) => void;
   onOpenMenu: () => void;
+  userRole: UserRole;
 }
 
-const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setActiveView, onOpenMenu }) => {
+const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setActiveView, onOpenMenu, userRole }) => {
   const navItems = [
     { view: View.LiveGame, icon: <PokerChipIcon /> },
     { view: View.Players, icon: <UsersIcon /> },
@@ -23,6 +24,15 @@ const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setAct
     { view: View.Ranking, icon: <TrophyIcon /> },
     { view: View.Cashier, icon: <CashierIcon /> },
   ];
+
+  const isViewDisabled = (view: View): boolean => {
+    if (!isUserAuthenticated) return true;
+    if (userRole === 'visitor') {
+      // Visitors can only see Ranking, History, and the Live Game
+      return ![View.Ranking, View.SessionHistory, View.LiveGame].includes(view);
+    }
+    return false;
+  };
   
   return (
     <header className="bg-poker-light shadow-lg">
@@ -44,9 +54,9 @@ const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setAct
                         activeView === item.view
                             ? 'bg-poker-green text-white shadow-md'
                             : 'bg-transparent text-poker-gray hover:bg-poker-dark hover:text-white'
-                        }`}
+                        } ${isViewDisabled(item.view) ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={item.view}
-                        disabled={!isUserAuthenticated}
+                        disabled={isViewDisabled(item.view)}
                     >
                         <span className="h-5 w-5">{item.icon}</span>
                         <span className="hidden md:inline ml-2">{item.view}</span>

@@ -31,6 +31,7 @@ const StatusToggle: React.FC<{ isActive: boolean; onToggle: () => void; disabled
     </button>
   );
 };
+const MemoizedStatusToggle = React.memo(StatusToggle);
 
 const PlayerFormModal: React.FC<{
     player: Player | null;
@@ -194,7 +195,7 @@ const Players: React.FC<PlayersProps> = ({ isUserAdmin, players, onAddPlayer, on
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 self-end sm:self-center">
-                    <StatusToggle isActive={player.isActive} onToggle={() => onTogglePlayerStatus(player.id)} disabled={!isUserAdmin} />
+                    <MemoizedStatusToggle isActive={player.isActive} onToggle={() => onTogglePlayerStatus(player.id)} disabled={!isUserAdmin} />
                     {isUserAdmin && (
                         <button onClick={() => handleOpenModal(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
                     )}

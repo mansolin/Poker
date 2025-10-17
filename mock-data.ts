@@ -1,4 +1,3 @@
-// FIX: Import 'doc' function from 'firebase/firestore' to create document references.
 import { collection, writeBatch, Timestamp, doc } from 'firebase/firestore';
 import type { Player, Session, GamePlayer } from './types';
 import { db } from './firebase';

@@ -14,7 +14,6 @@ import ClockIcon from './components/icons/ClockIcon';
 import type { Player, GamePlayer, Session, ToastState, AppUser, UserRole, GameDefaults, Notification } from './types';
 import { View } from './types';
 import { db, auth } from './firebase';
-// FIX: Import 'limit' from 'firebase/firestore' to be used in a query.
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, limit } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 import SessionDetailModal from './components/SessionDetailModal';
@@ -112,8 +111,8 @@ const App: React.FC = () => {
         }
       } else {
         setUserRole('visitor');
-        setIsVisitorMode(false);
         setCurrentUserData(null);
+        // Do not set visitor mode here, let the user decide.
       }
       setIsLoading(false);
     });
@@ -156,41 +155,46 @@ const App: React.FC = () => {
   }, [userRole, user]);
 
   useEffect(() => {
-    // Only fetch data if the user is properly authenticated and approved.
-    // Visitors will see the UI shell but no sensitive data to prevent permission errors and data leaks.
-    if (!isUserAuthenticatedAndApproved) {
-      setPlayers([]);
-      setSessionHistory([]);
-      setGamePlayers([]);
-      setCurrentGameName(null);
-      return;
+    const canFetchData = isUserAuthenticatedAndApproved || isVisitorMode;
+
+    // Clear all data only if user is logged out AND not a visitor
+    if (!canFetchData) {
+        setPlayers([]);
+        setSessionHistory([]);
+        setGamePlayers([]);
+        setCurrentGameName(null);
+        setGameDefaults({ buyIn: 50, rebuy: 50 });
+        return;
     }
-    
-    const unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
-      setPlayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
-    });
-    
-    const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
-    const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
-      const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
-      
-      sessions.sort((a, b) => {
-          const dateA = parseDateFromName(a.name);
-          const dateB = parseDateFromName(b.name);
-          return dateB.getTime() - dateA.getTime();
-      });
 
-      setSessionHistory(sessions);
-      if (viewingSession) {
-          const updatedSession = sessions.find(s => s.id === viewingSession.id);
-          setViewingSession(updatedSession || null);
-      }
-    });
-
+    let unsubPlayers = () => {};
+    let unsubSessions = () => {};
     let unsubLiveGame = () => {};
     let unsubConfig = () => {};
 
-    if (isUserAuthenticatedAndApproved) {
+    // Fetch all readable data for approved users AND visitors
+    if (canFetchData) {
+        unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
+          setPlayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
+        });
+        
+        const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
+        unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
+          const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
+          
+          sessions.sort((a, b) => {
+              const dateA = parseDateFromName(a.name);
+              const dateB = parseDateFromName(b.name);
+              return dateB.getTime() - a.getTime();
+          });
+
+          setSessionHistory(sessions);
+          if (viewingSession) {
+              const updatedSession = sessions.find(s => s.id === viewingSession.id);
+              setViewingSession(updatedSession || null);
+          }
+        });
+
         unsubLiveGame = onSnapshot(doc(db, 'liveGame', 'current'), (snapshot) => {
             if (snapshot.exists()) {
                 const liveGameData = snapshot.data();
@@ -214,7 +218,7 @@ const App: React.FC = () => {
       unsubLiveGame(); 
       unsubConfig(); 
     };
-}, [isUserAuthenticatedAndApproved, viewingSession]);
+}, [isUserAuthenticatedAndApproved, isVisitorMode, viewingSession]);
 
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -295,6 +299,11 @@ const App: React.FC = () => {
   };
   const handleEndGame = async (): Promise<void> => {
     if (!isUserAdmin || !currentGameName) return;
+    
+    if(gamePlayers.length < 2) {
+      showToast('É necessário ter pelo menos 2 jogadores para salvar o jogo.', 'error');
+      return;
+    }
     
     const gameDate = parseDateFromName(currentGameName);
     if (isNaN(gameDate.getTime()) || gameDate.getTime() === 0) {
@@ -479,7 +488,7 @@ const App: React.FC = () => {
   if (userRole === 'pending') {
       return (
          <div className="min-h-screen bg-poker-dark">
-            <Header activeView={activeView} setActiveView={() => {}} onOpenMenu={() => setIsMenuOpen(true)} isUserAuthenticated={isUserAuthenticatedAndApproved} />
+            <Header activeView={activeView} setActiveView={() => {}} onOpenMenu={() => setIsMenuOpen(true)} isUserAuthenticated={isUserAuthenticatedAndApproved} userRole={userRole}/>
             <main className="container mx-auto p-4 md:p-8 flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)'}}>
                 <div className="bg-poker-light p-10 rounded-lg shadow-xl text-center max-w-lg">
                     <div className="text-poker-gold mx-auto mb-4 w-16 h-16"><ClockIcon /></div>
@@ -493,7 +502,13 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-poker-dark">
-      <Header activeView={activeView} setActiveView={setActiveView} onOpenMenu={() => setIsMenuOpen(true)} isUserAuthenticated={isUserAuthenticatedAndApproved || isVisitorMode} />
+      <Header 
+        activeView={activeView} 
+        setActiveView={setActiveView} 
+        onOpenMenu={() => setIsMenuOpen(true)} 
+        isUserAuthenticated={isUserAuthenticatedAndApproved || isVisitorMode} 
+        userRole={userRole}
+      />
        <MenuPanel 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
