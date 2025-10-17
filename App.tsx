@@ -292,7 +292,10 @@ const App: React.FC = () => {
     }
     const dateTimestamp = Timestamp.fromDate(gameDate);
 
-    const gamePlayersWithPayment = gamePlayers.map(p => ({ ...p, paid: (p.finalChips - p.totalInvested) >= 0 }));
+    // Ao salvar um novo jogo, todos os jogadores são marcados com pagamento pendente.
+    // O admin/dono pode então confirmar os pagamentos na tela de detalhes do jogo.
+    const gamePlayersWithPayment = gamePlayers.map(p => ({ ...p, paid: false }));
+
     try {
       await addDoc(collection(db, 'sessions'), { name: currentGameName, date: dateTimestamp, players: gamePlayersWithPayment });
       await deleteDoc(doc(db, 'liveGame', 'current'));

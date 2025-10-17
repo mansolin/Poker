@@ -49,11 +49,12 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                         <h3 className="text-xl font-bold text-white">Detalhes do Jogo: {session.name}</h3>
                         <p className="text-sm text-poker-gold">Montante: R$ {totalPot.toLocaleString('pt-BR')}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {isUserAdmin && <button onClick={() => onEditGame(session.id)} className="p-2 text-poker-gray hover:text-white"><EditIcon /></button>}
-                        {isUserAdmin && <button onClick={() => onDeleteGame(session.id)} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button>}
-                        <button onClick={onClose} className="text-poker-gray hover:text-white text-3xl">&times;</button>
-                    </div>
+                    {isUserAdmin && (
+                        <div className="flex items-center gap-2">
+                           <button onClick={() => onEditGame(session.id)} className="p-2 text-poker-gray hover:text-white" title="Editar Jogo"><EditIcon /></button>
+                           <button onClick={() => onDeleteGame(session.id)} className="p-2 text-poker-gray hover:text-red-500" title="Excluir Jogo"><TrashIcon /></button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="p-4 flex-grow overflow-y-auto space-y-8">
@@ -71,13 +72,13 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                     <div className="w-full h-96">
                         <h4 className="text-lg font-semibold text-white mb-3">Gráfico de Desempenho</h4>
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={rankedPlayers} margin={{ top: 25, right: 10, left: -25, bottom: 50 }}>
+                          <BarChart data={rankedPlayers} margin={{ top: 25, right: 10, left: -25, bottom: 70 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
                             <XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-40} textAnchor="end" />
                             <YAxis stroke="#A0AEC0" fontSize={12} tickFormatter={(v) => `R$${v}`} />
                             <Tooltip content={<CustomTooltip />} />
                             <Bar dataKey="profit">
-                              <LabelList dataKey="profit" position="top" formatter={(v: number) => v.toLocaleString('pt-BR')} fontSize={10} className="fill-poker-gray" />
+                              <LabelList dataKey="profit" position="top" formatter={(v: number) => v.toLocaleString('pt-BR')} fontSize={10} fill="#a0aec0" />
                               {rankedPlayers.map((entry, i) => (<Cell key={`c-${i}`} fill={entry.profit >= 0 ? '#d69e2e' : '#a0aec0'} />))}
                             </Bar>
                           </BarChart>
@@ -85,8 +86,10 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                     </div>
                 </div>
 
-                 <div className="p-3 border-t border-poker-dark text-right flex justify-end items-center gap-4">
-                    <button onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Fechar</button>
+                 <div className="p-3 border-t border-poker-dark flex justify-end items-center">
+                    <button onClick={onClose} className="w-full sm:w-auto px-6 py-2 text-sm font-semibold bg-red-800/50 text-red-400 hover:bg-red-800 hover:text-white rounded-lg transition-colors">
+                        Fechar
+                    </button>
                 </div>
             </div>
         </div>
