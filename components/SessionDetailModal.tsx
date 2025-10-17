@@ -21,7 +21,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-poker-dark p-3 border border-poker-light rounded-md shadow-lg">
         <p className="text-white font-semibold">{label}</p>
-        <p className={`text-sm ${value >= 0 ? 'text-poker-gold' : 'text-poker-gray'}`}>R$ {value.toLocaleString('pt-BR')}</p>
+        <p className={`text-sm ${value >= 0 ? 'text-poker-gold' : 'text-red-400'}`}>R$ {value.toLocaleString('pt-BR')}</p>
       </div>
     );
   }
@@ -36,10 +36,25 @@ const PaymentToggle: React.FC<{ paid: boolean; onToggle: () => void; disabled: b
   </button>
 );
 
+const renderCustomizedLabel = (props: any) => {
+    const { x, y, width, value } = props;
+    if (value === 0) return null;
+    const color = value > 0 ? '#d69e2e' : '#fca5a5';
+    
+    return (
+        <text x={x + width / 2} y={y} fill={color} textAnchor="middle" dy={-5} fontSize={10} fontWeight="bold">
+            {value.toLocaleString('pt-BR')}
+        </text>
+    );
+};
+
 
 const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUserAdmin, onClose, onEditGame, onDeleteGame, onTogglePayment, onViewProfile }) => {
-    const rankedPlayers = [...session.players].map(p => ({ ...p, profit: p.finalChips - p.totalInvested })).sort((a, b) => b.profit - a.profit);
-    const totalPot = session.players.reduce((sum, p) => sum + p.totalInvested, 0);
+    const rankedPlayers = [...(session.players || [])]
+      .map(p => ({ ...p, profit: (p.finalChips || 0) - (p.totalInvested || 0) }))
+      .sort((a, b) => b.profit - a.profit);
+      
+    const totalPot = (session.players || []).reduce((sum, p) => sum + (p.totalInvested || 0), 0);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
@@ -71,18 +86,26 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                     </div>
                     <div className="w-full h-96">
                         <h4 className="text-lg font-semibold text-white mb-3">Gráfico de Desempenho</h4>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={rankedPlayers} margin={{ top: 25, right: 10, left: -25, bottom: 70 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
-                            <XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-40} textAnchor="end" />
-                            <YAxis stroke="#A0AEC0" fontSize={12} tickFormatter={(v) => `R$${v}`} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Bar dataKey="profit">
-                              <LabelList dataKey="profit" position="top" formatter={(v: number) => v.toLocaleString('pt-BR')} fontSize={10} fill="#a0aec0" />
-                              {rankedPlayers.map((entry, i) => (<Cell key={`c-${i}`} fill={entry.profit >= 0 ? '#d69e2e' : '#a0aec0'} />))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                         {rankedPlayers && rankedPlayers.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={rankedPlayers} margin={{ top: 20, right: 10, left: -25, bottom: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
+                                <XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-45} textAnchor="end" height={80} dy={10} />
+                                <YAxis stroke="#A0AEC0" fontSize={12} tickFormatter={(v) => `R$${v}`} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Bar dataKey="profit">
+                                  <LabelList dataKey="profit" content={renderCustomizedLabel} />
+                                  {rankedPlayers.map((entry, i) => (
+                                    <Cell key={`c-${i}`} fill={entry.profit >= 0 ? '#d69e2e' : '#ef4444'} />
+                                  ))}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="flex items-center justify-center h-full">
+                                <p className="text-poker-gray">Não há dados para exibir o gráfico.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
