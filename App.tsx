@@ -183,8 +183,8 @@ const App: React.FC = () => {
           const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
           
           sessions.sort((a, b) => {
-              const dateA = parseDateFromName(a.name);
-              const dateB = parseDateFromName(b.name);
+              const dateA = a.date ? parseDateFromName(a.name) : new Date(0);
+              const dateB = b.date ? parseDateFromName(b.name) : new Date(0);
               return dateB.getTime() - dateA.getTime();
           });
 
@@ -513,6 +513,7 @@ const App: React.FC = () => {
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
         user={currentUserData}
+        userRole={userRole}
         notifications={notifications}
         onGoToSettings={() => { setActiveView(View.Settings); setIsMenuOpen(false); }}
         onLogout={() => { setIsMenuOpen(false); handleLogout(); }}

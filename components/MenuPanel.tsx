@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AppUser, Notification } from '../types';
+import type { AppUser, Notification, UserRole } from '../types';
 import SettingsIcon from './icons/SettingsIcon';
 import LogoutIcon from './icons/LogoutIcon';
 import HelpIcon from './icons/HelpIcon';
@@ -7,18 +7,21 @@ import ArrowLeftIcon from './icons/ArrowLeftIcon';
 import NotificationIcon from './icons/NotificationIcon';
 import UsersIcon from './icons/UsersIcon';
 import TrophyIcon from './icons/TrophyIcon';
+import PlayerAvatar from './PlayerAvatar';
+import UserIcon from './icons/UserIcon';
 
 interface MenuPanelProps {
     isOpen: boolean;
     onClose: () => void;
     user: AppUser | null;
+    userRole: UserRole;
     notifications: Notification[];
     isUserAdmin: boolean;
     onGoToSettings: () => void;
     onLogout: () => void;
 }
 
-const MenuPanel: React.FC<MenuPanelProps> = ({ isOpen, onClose, user, notifications, isUserAdmin, onGoToSettings, onLogout }) => {
+const MenuPanel: React.FC<MenuPanelProps> = ({ isOpen, onClose, user, userRole, notifications, isUserAdmin, onGoToSettings, onLogout }) => {
     
     const timeSince = (timestamp: any) => {
         if (!timestamp) return '';
@@ -32,6 +35,25 @@ const MenuPanel: React.FC<MenuPanelProps> = ({ isOpen, onClose, user, notificati
             case 'role': return <SettingsIcon />;
             case 'game': return <TrophyIcon />;
             default: return <NotificationIcon />;
+        }
+    };
+
+    const formatRole = (role: UserRole) => {
+        switch (role) {
+            case 'owner': return 'Dono';
+            case 'admin': return 'Admin';
+            case 'pending': return 'Pendente';
+            case 'visitor': return 'Visitante';
+            default: return role;
+        }
+    };
+    
+    const getRoleBadgeColor = (role: UserRole) => {
+        switch (role) {
+            case 'owner': return 'bg-poker-gold text-poker-dark';
+            case 'admin': return 'bg-poker-green text-white';
+            case 'pending': return 'bg-poker-gray text-white';
+            default: return 'bg-blue-600 text-white';
         }
     };
     
@@ -91,6 +113,30 @@ const MenuPanel: React.FC<MenuPanelProps> = ({ isOpen, onClose, user, notificati
                 </div>
 
                 <footer className="p-4 border-t border-poker-light">
+                    <div className="mb-4 p-3 bg-poker-light rounded-lg">
+                        {user ? (
+                            <div className="flex items-center space-x-3">
+                                <PlayerAvatar name={user.name} size="md" />
+                                <div className="min-w-0">
+                                    <p className="font-bold text-white truncate" title={user.name}>{user.name}</p>
+                                    <p className="text-xs text-poker-gray truncate" title={user.email}>{user.email}</p>
+                                    <span className={`mt-1 inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getRoleBadgeColor(user.role)}`}>
+                                        {formatRole(user.role)}
+                                    </span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-poker-gray text-poker-dark"><span className="w-5 h-5"><UserIcon /></span></div>
+                                <div>
+                                    <p className="font-bold text-white">Visitante</p>
+                                    <span className={`mt-1 inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getRoleBadgeColor('visitor')}`}>
+                                        Navegando
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <button onClick={onLogout} className="w-full p-3 text-base bg-red-800/50 text-red-400 hover:bg-red-800 hover:text-white font-semibold rounded-lg transition-colors">
                         Sair do App
                     </button>
