@@ -185,7 +185,7 @@ const App: React.FC = () => {
           sessions.sort((a, b) => {
               const dateA = parseDateFromName(a.name);
               const dateB = parseDateFromName(b.name);
-              return dateB.getTime() - a.getTime();
+              return dateB.getTime() - dateA.getTime();
           });
 
           setSessionHistory(sessions);
