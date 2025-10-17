@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import type { Player, Session } from '../types';
 import PlayerAvatar from './PlayerAvatar';
@@ -10,6 +9,19 @@ interface PlayerProfileProps {
   sessionHistory: Session[];
   onBack: () => void;
 }
+
+const parseDateFromName = (name: string): Date => {
+    const parts = name.split('/');
+    if (parts.length !== 3) return new Date(0);
+    const year = 2000 + parseInt(parts[2], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS Date
+    const day = parseInt(parts[0], 10);
+    const date = new Date(year, month, day);
+    if (isNaN(date.getTime()) || date.getDate() !== day || date.getMonth() !== month) {
+        return new Date(0);
+    }
+    return date;
+};
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -39,7 +51,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, players, sessio
         playerData: session.players.find(p => p.id === player.id)
       }))
       .filter(session => session.playerData)
-      .sort((a, b) => a.date.toMillis() - b.date.toMillis());
+      .sort((a, b) => parseDateFromName(a.name).getTime() - parseDateFromName(b.name).getTime());
 
     let totalProfit = 0;
     let gamesPlayed = 0;
@@ -132,7 +144,7 @@ const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, players, sessio
             <ResponsiveContainer>
               <LineChart data={stats.chartData} margin={{ top: 5, right: 20, left: -10, bottom: 70 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
-                <XAxis dataKey="name" stroke="#A0AEC0" fontSize={12} tickLine={false} axisLine={false} interval={Math.floor(stats.chartData.length / 10)} angle={-45} textAnchor="end" />
+                <XAxis dataKey="name" stroke="#A0AEC0" fontSize={12} tickLine={false} axisLine={false} interval={0} angle={-45} textAnchor="end" />
                 <YAxis stroke="#A0AEC0" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend verticalAlign="top" height={36}/>

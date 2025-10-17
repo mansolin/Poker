@@ -88,9 +88,9 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({ session, isUser
                         <h4 className="text-lg font-semibold text-white mb-3">Gráfico de Desempenho</h4>
                          {rankedPlayers && rankedPlayers.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={rankedPlayers} margin={{ top: 20, right: 10, left: -25, bottom: 20 }}>
+                              <BarChart data={rankedPlayers} margin={{ top: 20, right: 10, left: -25, bottom: 80 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" strokeOpacity={0.5} />
-                                <XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-45} textAnchor="end" height={80} dy={10} />
+                                <XAxis dataKey="name" stroke="#A0AEC0" fontSize={10} interval={0} angle={-45} textAnchor="end" dy={10} />
                                 <YAxis stroke="#A0AEC0" fontSize={12} tickFormatter={(v) => `R$${v}`} />
                                 <Tooltip content={<CustomTooltip />} />
                                 <Bar dataKey="profit">
