@@ -19,6 +19,20 @@ import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } fro
 import SessionDetailModal from './components/SessionDetailModal';
 import MenuPanel from './components/MenuPanel';
 
+const parseDateFromName = (name: string): Date => {
+    const parts = name.split('/');
+    if (parts.length !== 3) return new Date(0); // Return an invalid date for sorting purposes
+    const year = 2000 + parseInt(parts[2], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS Date
+    const day = parseInt(parts[0], 10);
+    const date = new Date(year, month, day);
+    // Check for invalid date components
+    if (isNaN(date.getTime()) || date.getDate() !== day || date.getMonth() !== month) {
+        return new Date(0);
+    }
+    return date;
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentUserData, setCurrentUserData] = useState<AppUser | null>(null);
@@ -30,7 +44,7 @@ const App: React.FC = () => {
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [currentGameName, setCurrentGameName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
+  const [modalMode, setModalMode] = useState<'edit' | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>({ message: '', type: 'success', visible: false });
@@ -147,6 +161,14 @@ const App: React.FC = () => {
     const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
     const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
       const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
+      
+      // Client-side sort to guarantee order based on game name (DD/MM/YY)
+      sessions.sort((a, b) => {
+          const dateA = parseDateFromName(a.name);
+          const dateB = parseDateFromName(b.name);
+          return dateB.getTime() - dateA.getTime();
+      });
+
       setSessionHistory(sessions);
       if (viewingSession) {
           const updatedSession = sessions.find(s => s.id === viewingSession.id);
@@ -262,9 +284,17 @@ const App: React.FC = () => {
   };
   const handleEndGame = async (): Promise<void> => {
     if (!isUserAdmin || !currentGameName) return;
+    
+    const gameDate = parseDateFromName(currentGameName);
+    if (isNaN(gameDate.getTime()) || gameDate.getTime() === 0) {
+        showToast('Nome do jogo (data) inválido. Corrija para DD/MM/AA antes de salvar.', 'error');
+        return;
+    }
+    const dateTimestamp = Timestamp.fromDate(gameDate);
+
     const gamePlayersWithPayment = gamePlayers.map(p => ({ ...p, paid: (p.finalChips - p.totalInvested) >= 0 }));
     try {
-      await addDoc(collection(db, 'sessions'), { name: currentGameName, date: Timestamp.now(), players: gamePlayersWithPayment });
+      await addDoc(collection(db, 'sessions'), { name: currentGameName, date: dateTimestamp, players: gamePlayersWithPayment });
       await deleteDoc(doc(db, 'liveGame', 'current'));
       addNotification('Jogo salvo no histórico!', `Jogo de ${currentGameName}`, 'game');
       showToast('Jogo salvo no histórico com sucesso!');
@@ -282,18 +312,20 @@ const App: React.FC = () => {
     }
   };
   const handleSaveHistoricGame = async (session: Omit<Session, 'id'>) => {
-    if (!isUserAdmin) return;
+    if (!isUserAdmin || modalMode !== 'edit' || !sessionToEdit) {
+        setModalMode(null);
+        setSessionToEdit(null);
+        return;
+    }
     try {
-      if (modalMode === 'edit' && sessionToEdit) {
-          await updateDoc(doc(db, 'sessions', sessionToEdit.id), session);
-          showToast('Jogo histórico atualizado!');
-      } else {
-          await addDoc(collection(db, 'sessions'), session);
-          addNotification('Jogo histórico adicionado', `Jogo de ${session.name}`, 'game');
-          showToast('Jogo histórico adicionado!');
-      }
-    } catch (e) { showToast('Erro ao salvar jogo histórico.', 'error'); }
-    finally { setModalMode(null); setSessionToEdit(null); }
+        await updateDoc(doc(db, 'sessions', sessionToEdit.id), session);
+        showToast('Jogo histórico atualizado!');
+    } catch (e) {
+        showToast('Erro ao atualizar jogo histórico.', 'error');
+    } finally {
+        setModalMode(null);
+        setSessionToEdit(null);
+    }
   };
   const handleOpenEditModal = (sessionId: string) => {
     if (!isUserAdmin) return;
@@ -415,7 +447,7 @@ const App: React.FC = () => {
     switch (activeView) {
       case View.LiveGame: return <LiveGame isUserAdmin={isUserAdmin} players={gamePlayers} allPlayers={players} gameName={currentGameName} onAddRebuy={handleAddRebuy} onRemoveRebuy={handleRemoveRebuy} onUpdateFinalChips={handleUpdateFinalChips} onUpdateGameName={handleUpdateGameName} onEndGame={handleEndGame} onCancelGame={handleCancelGame} onGoToPlayers={() => setActiveView(View.Players)} onAddPlayerToGame={handleAddPlayerToLiveGame} onViewProfile={handleViewProfile} gameDefaults={gameDefaults} />;
       case View.Players: return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onStartGame={handleStartGame} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
-      case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onIncludeGame={() => setModalMode('add')} onViewSession={handleViewSession} />;
+      case View.SessionHistory: return <SessionHistory isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onViewSession={handleViewSession} />;
       case View.Ranking: return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
       case View.PlayerProfile: return <PlayerProfile playerId={viewingPlayerId} players={players} sessionHistory={sessionHistory} onBack={() => setActiveView(View.Ranking)} />;
       case View.Cashier: return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettlePlayerDebts} onViewProfile={handleViewProfile} />;
@@ -462,7 +494,7 @@ const App: React.FC = () => {
       <main className="container mx-auto p-4 md:p-8">
         <div key={activeView} className="animate-fade-in">{renderContent()}</div>
       </main>
-      {modalMode && isUserAdmin && (
+      {modalMode === 'edit' && isUserAdmin && (
         <AddHistoricGame players={players} onSave={handleSaveHistoricGame} onClose={() => { setModalMode(null); setSessionToEdit(null); }} sessionToEdit={sessionToEdit} />
       )}
       {viewingSession && (

@@ -10,12 +10,11 @@ interface SessionHistoryProps {
   isUserAdmin: boolean;
   sessions: Session[];
   players: Player[];
-  onIncludeGame: () => void;
   onViewSession: (sessionId: string) => void;
 }
 
 const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
-  const { isUserAdmin, sessions, players, onIncludeGame, onViewSession } = props;
+  const { isUserAdmin, sessions, players, onViewSession } = props;
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const totalPot = useMemo(() => {
@@ -24,22 +23,13 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
     }, 0);
   }, [sessions]);
 
-  if (sessions.length === 0 && !isUserAdmin) {
+  if (sessions.length === 0) {
      return (
         <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
             <h2 className="text-2xl font-bold text-white mb-4">Nenhum Histórico</h2>
             <p className="text-poker-gray">Ainda não há jogos registrados no histórico.</p>
         </div>
      );
-  }
-
-  if (sessions.length === 0 && isUserAdmin) {
-    return (
-      <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
-        <h2 className="text-2xl font-bold text-white mb-4">Nenhum Histórico</h2>
-        <button onClick={onIncludeGame} className="mt-6 flex items-center mx-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-green text-white"><span className="h-5 w-5 mr-2"><PlusIcon /></span> Incluir Jogo Antigo</button>
-      </div>
-    );
   }
 
   return (
@@ -54,13 +44,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = (props) => {
                 </div>
             </div>
 
-            <div className="flex w-full sm:w-auto items-stretch justify-between sm:justify-end gap-2">
-                {isUserAdmin && 
-                    <button onClick={onIncludeGame} className="flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-poker-green text-white flex-1 sm:flex-none">
-                        <span className="h-5 w-5 sm:mr-2"><PlusIcon /></span>
-                        <span className="hidden sm:inline">Incluir Jogo</span>
-                    </button>
-                }
+            <div className="flex w-full sm:w-auto items-stretch justify-end gap-2">
                 <div className="bg-poker-dark p-2 rounded-lg text-center flex-1 sm:flex-none">
                     <div className="flex items-center justify-center text-poker-gray text-[10px] sm:text-xs mb-1">
                         <span className="h-4 w-4 mr-1"><TrendingUpIcon /></span>
