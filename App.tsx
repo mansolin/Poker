@@ -11,12 +11,13 @@ import Cashier from './components/Cashier';
 import Settings from './components/Settings';
 import Toast from './components/Toast';
 import ClockIcon from './components/icons/ClockIcon';
-import type { Player, GamePlayer, Session, ToastState, AppUser, UserRole, GameDefaults } from './types';
+import type { Player, GamePlayer, Session, ToastState, AppUser, UserRole, GameDefaults, Notification } from './types';
 import { View } from './types';
 import { db, auth } from './firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, getDocs, where } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, Timestamp, query, orderBy, setDoc, writeBatch, getDoc, getDocs, where, limit } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 import SessionDetailModal from './components/SessionDetailModal';
+import MenuPanel from './components/MenuPanel';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -36,9 +37,20 @@ const App: React.FC = () => {
   const [appUsers, setAppUsers] = useState<AppUser[]>([]);
   const [gameDefaults, setGameDefaults] = useState<GameDefaults>({ buyIn: 50, rebuy: 50 });
   const [viewingSession, setViewingSession] = useState<Session | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const isUserAdmin = userRole === 'owner' || userRole === 'admin';
   const isUserAuthenticatedAndApproved = useMemo(() => user && userRole !== 'pending' && userRole !== 'visitor', [user, userRole]);
+
+  const addNotification = async (message: string, subMessage: string = '', icon: Notification['icon'] = 'game') => {
+    if (!isUserAdmin) return;
+    try {
+      await addDoc(collection(db, 'notifications'), { message, subMessage, icon, timestamp: Timestamp.now() });
+    } catch (error) {
+      console.error("Erro ao adicionar notificação: ", error);
+    }
+  };
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -53,14 +65,10 @@ const App: React.FC = () => {
           setUserRole(userData.role);
           setCurrentUserData(userData);
         } else {
-          // User document doesn't exist, create it.
-          // Check if an owner already exists.
           const usersRef = collection(db, 'users');
           const ownerQuery = query(usersRef, where("role", "==", "owner"));
           const ownerSnapshot = await getDocs(ownerQuery);
-
           const newRole: UserRole = ownerSnapshot.empty ? 'owner' : 'pending';
-          
           const newUserDocData: AppUser = {
               uid: currentUser.uid,
               name: currentUser.displayName || currentUser.email || 'Novo Usuário',
@@ -74,6 +82,8 @@ const App: React.FC = () => {
 
           if (newRole === 'owner') {
             showToast('Sua conta de Dono foi configurada!', 'success');
+          } else {
+            addNotification('Novo usuário aguardando aprovação', newUserDocData.name, 'user');
           }
         }
       } else {
@@ -88,29 +98,41 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let unsubAppUsers: () => void = () => {};
-    if (userRole === 'owner') {
-        unsubAppUsers = onSnapshot(query(collection(db, 'users'), orderBy('name')), (snapshot) => {
-            const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
-            setAppUsers(users);
-            // Also update current user data if it changed (e.g., role update)
-            if (user) {
-                const updatedCurrentUser = users.find(u => u.uid === user.uid);
-                if (updatedCurrentUser) {
-                    setCurrentUserData(updatedCurrentUser);
-                    setUserRole(updatedCurrentUser.role);
+    let unsubNotifications: () => void = () => {};
+
+    if (userRole === 'owner' || userRole === 'admin') {
+        if(userRole === 'owner') {
+            unsubAppUsers = onSnapshot(query(collection(db, 'users'), orderBy('name')), (snapshot) => {
+                const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
+                setAppUsers(users);
+                if (user) {
+                    const updatedCurrentUser = users.find(u => u.uid === user.uid);
+                    if (updatedCurrentUser) {
+                        setCurrentUserData(updatedCurrentUser);
+                        setUserRole(updatedCurrentUser.role);
+                    }
                 }
-            }
+            });
+        }
+        
+        const notificationsQuery = query(collection(db, 'notifications'), orderBy('timestamp', 'desc'), limit(25));
+        unsubNotifications = onSnapshot(notificationsQuery, (snapshot) => {
+            const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+            setNotifications(notifs);
         });
+
     } else {
         setAppUsers([]);
+        setNotifications([]);
     }
-    return () => unsubAppUsers();
+    return () => { 
+        unsubAppUsers();
+        unsubNotifications();
+    };
   }, [userRole, user]);
 
   useEffect(() => {
-    // If the user is not authenticated/approved AND not in visitor mode, don't set up listeners.
     if (!isUserAuthenticatedAndApproved && !isVisitorMode) {
-      // Clear data on logout or if access is pending/revoked
       setPlayers([]);
       setSessionHistory([]);
       setGamePlayers([]);
@@ -118,7 +140,6 @@ const App: React.FC = () => {
       return;
     }
     
-    // Listeners for public/visitor data
     const unsubPlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
       setPlayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
     });
@@ -127,7 +148,6 @@ const App: React.FC = () => {
     const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
       const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
       setSessionHistory(sessions);
-      // Update viewing session if it's currently open
       if (viewingSession) {
           const updatedSession = sessions.find(s => s.id === viewingSession.id);
           setViewingSession(updatedSession || null);
@@ -137,7 +157,6 @@ const App: React.FC = () => {
     let unsubLiveGame = () => {};
     let unsubConfig = () => {};
 
-    // Listeners for authenticated/approved users only
     if (isUserAuthenticatedAndApproved) {
         unsubLiveGame = onSnapshot(doc(db, 'liveGame', 'current'), (snapshot) => {
             if (snapshot.exists()) {
@@ -174,6 +193,7 @@ const App: React.FC = () => {
     if (!isUserAdmin) return;
     try {
       await addDoc(collection(db, 'players'), { ...player, isActive: true });
+      addNotification('Novo jogador cadastrado', player.name, 'user');
       showToast('Jogador adicionado com sucesso!');
     } catch (e) { showToast('Erro ao adicionar jogador.', 'error'); }
   };
@@ -246,11 +266,12 @@ const App: React.FC = () => {
     try {
       await addDoc(collection(db, 'sessions'), { name: currentGameName, date: Timestamp.now(), players: gamePlayersWithPayment });
       await deleteDoc(doc(db, 'liveGame', 'current'));
+      addNotification('Jogo salvo no histórico!', `Jogo de ${currentGameName}`, 'game');
       showToast('Jogo salvo no histórico com sucesso!');
       setActiveView(View.SessionHistory);
     } catch (e) { 
       showToast('Erro ao salvar o jogo.', 'error');
-      throw e; // Propagate error for loading state handling
+      throw e;
     }
   };
   const handleCancelGame = async () => {
@@ -268,6 +289,7 @@ const App: React.FC = () => {
           showToast('Jogo histórico atualizado!');
       } else {
           await addDoc(collection(db, 'sessions'), session);
+          addNotification('Jogo histórico adicionado', `Jogo de ${session.name}`, 'game');
           showToast('Jogo histórico adicionado!');
       }
     } catch (e) { showToast('Erro ao salvar jogo histórico.', 'error'); }
@@ -288,7 +310,7 @@ const App: React.FC = () => {
       try {
         await deleteDoc(doc(db, 'sessions', sessionId));
         showToast('Jogo excluído do histórico.', 'success');
-        setViewingSession(null); // Close modal if it's open for this session
+        setViewingSession(null);
       } catch (e) { showToast('Erro ao excluir jogo.', 'error'); }
     }
   };
@@ -323,7 +345,7 @@ const App: React.FC = () => {
   const handleViewProfile = (playerId: string) => {
     setViewingPlayerId(playerId);
     setActiveView(View.PlayerProfile);
-    setViewingSession(null); // Close session modal when navigating away
+    setViewingSession(null);
   };
   const handleLogout = () => {
     signOut(auth);
@@ -331,8 +353,11 @@ const App: React.FC = () => {
   };
   const handleUpdateUserRole = async (uid: string, role: UserRole) => {
       if (userRole !== 'owner') return;
+      const userToUpdate = appUsers.find(u => u.uid === uid);
+      if (!userToUpdate) return;
       try {
           await updateDoc(doc(db, 'users', uid), { role });
+          addNotification('Cargo de usuário atualizado', `${userToUpdate.name} é agora ${role}`, 'role');
           showToast('Cargo do usuário atualizado!');
       } catch { showToast('Erro ao atualizar cargo.', 'error'); }
   };
@@ -349,6 +374,7 @@ const App: React.FC = () => {
       try {
           const tempUserCredential = await createUserWithEmailAndPassword(auth, userData.email, password);
           await setDoc(doc(db, 'users', tempUserCredential.user.uid), { name: userData.name, email: userData.email, role: userData.role });
+          addNotification('Novo usuário criado', `${userData.name} (${userData.role})`, 'user');
           showToast('Usuário criado com sucesso!', 'success');
           return true;
       } catch (e: any) {
@@ -409,7 +435,7 @@ const App: React.FC = () => {
   if (userRole === 'pending') {
       return (
          <div className="min-h-screen bg-poker-dark">
-            <Header userName={currentUserData?.name || null} userRole={userRole} isVisitor={false} activeView={activeView} setActiveView={() => {}} onLogout={handleLogout} />
+            <Header activeView={activeView} setActiveView={() => {}} onOpenMenu={() => setIsMenuOpen(true)} isUserAuthenticated={isUserAuthenticatedAndApproved} />
             <main className="container mx-auto p-4 md:p-8 flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)'}}>
                 <div className="bg-poker-light p-10 rounded-lg shadow-xl text-center max-w-lg">
                     <div className="text-poker-gold mx-auto mb-4 w-16 h-16"><ClockIcon /></div>
@@ -423,7 +449,16 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-poker-dark">
-      <Header userName={currentUserData?.name || null} userRole={userRole} isVisitor={isVisitorMode} activeView={activeView} setActiveView={setActiveView} onLogout={handleLogout} />
+      <Header activeView={activeView} setActiveView={setActiveView} onOpenMenu={() => setIsMenuOpen(true)} isUserAuthenticated={isUserAuthenticatedAndApproved || isVisitorMode} />
+       <MenuPanel 
+        isOpen={isMenuOpen} 
+        onClose={() => setIsMenuOpen(false)}
+        user={currentUserData}
+        notifications={notifications}
+        onGoToSettings={() => { setActiveView(View.Settings); setIsMenuOpen(false); }}
+        onLogout={() => { setIsMenuOpen(false); handleLogout(); }}
+        isUserAdmin={isUserAdmin}
+      />
       <main className="container mx-auto p-4 md:p-8">
         <div key={activeView} className="animate-fade-in">{renderContent()}</div>
       </main>

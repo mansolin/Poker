@@ -113,14 +113,14 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
                                                 value={user.role}
                                                 onChange={e => onUpdateUserRole(user.uid, e.target.value as UserRole)}
                                                 className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2"
-                                                disabled={user.role === 'owner'}
+                                                disabled={user.email === 'marcioansolin@gmail.com'}
                                             >
                                                 <option value="owner">Dono</option>
                                                 <option value="admin">Admin</option>
                                                 <option value="visitor">Visitante</option>
                                                 <option value="pending">Pendente</option>
                                             </select>
-                                            {user.role !== 'owner' && (
+                                            {user.email !== 'marcioansolin@gmail.com' && (
                                                 <button onClick={() => onDeleteUser(user.uid)} className="p-2 text-poker-gray hover:text-red-500" title="Excluir Usuário">
                                                     <TrashIcon />
                                                 </button>

@@ -1,4 +1,3 @@
-
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Player {
@@ -52,4 +51,12 @@ export interface ToastState {
 export interface GameDefaults {
   buyIn: number;
   rebuy: number;
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  subMessage?: string;
+  timestamp: Timestamp;
+  icon?: 'user' | 'game' | 'role';
 }
