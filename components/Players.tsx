@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Player } from '../types';
 import WhatsAppIcon from './icons/WhatsAppIcon';
 import EditIcon from './icons/EditIcon';
@@ -114,6 +114,155 @@ const PlayerFormModal: React.FC<{
     );
 };
 
+const PlayerListItem: React.FC<{
+  player: Player;
+  isSelected: boolean;
+  isUserAdmin: boolean;
+  onSelect: (id: string) => void;
+  onToggle: (id: string) => void;
+  onEdit: (player: Player) => void;
+  onDelete: (id: string) => void;
+  onViewProfile: (id: string) => void;
+}> = ({ player, isSelected, isUserAdmin, onSelect, onToggle, onEdit, onDelete, onViewProfile }) => {
+    const swipeableContentRef = useRef<HTMLDivElement>(null);
+    const touchStartX = useRef(0);
+    const lastTranslateX = useRef(0);
+    const isDragging = useRef(false);
+    const didSwipe = useRef(false);
+    
+    const SWIPE_THRESHOLD = 40; // Open if swiped more than 40px
+    const DELETE_BUTTON_WIDTH = 80;
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (!isUserAdmin) return;
+        touchStartX.current = e.touches[0].clientX;
+        isDragging.current = true;
+        didSwipe.current = false;
+        if (swipeableContentRef.current) {
+            swipeableContentRef.current.style.transition = 'none';
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDragging.current || !isUserAdmin) return;
+        
+        const currentX = e.touches[0].clientX;
+        const deltaX = currentX - touchStartX.current;
+        
+        // Register as a swipe if moved more than a few pixels
+        if (Math.abs(deltaX) > 5) {
+            didSwipe.current = true;
+        }
+
+        // Apply transform based on swipe from original position
+        const newTranslateX = lastTranslateX.current + deltaX;
+        
+        // Clamp the swipe between 0 (closed) and DELETE_BUTTON_WIDTH (open)
+        const clampedTranslateX = Math.max(0, Math.min(DELETE_BUTTON_WIDTH, newTranslateX));
+        
+        if (swipeableContentRef.current) {
+            swipeableContentRef.current.style.transform = `translateX(${clampedTranslateX}px)`;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (!isDragging.current || !isUserAdmin) return;
+        isDragging.current = false;
+
+        const finalTranslateX = swipeableContentRef.current ? 
+            new DOMMatrix(getComputedStyle(swipeableContentRef.current).transform).m41 : 0;
+
+        if (swipeableContentRef.current) {
+            swipeableContentRef.current.style.transition = 'transform 0.2s ease-out';
+            if (finalTranslateX > SWIPE_THRESHOLD) {
+                swipeableContentRef.current.style.transform = `translateX(${DELETE_BUTTON_WIDTH}px)`;
+                lastTranslateX.current = DELETE_BUTTON_WIDTH;
+            } else {
+                swipeableContentRef.current.style.transform = 'translateX(0px)';
+                lastTranslateX.current = 0;
+            }
+        }
+    };
+
+    const handleDeleteClick = () => {
+        onDelete(player.id);
+    };
+
+    const handleContentClick = () => {
+        // If there was a swipe gesture, don't trigger the click action
+        if (didSwipe.current) {
+            return;
+        }
+        // If the item is swiped open, a tap should close it
+        if (lastTranslateX.current !== 0) {
+            if (swipeableContentRef.current) {
+                swipeableContentRef.current.style.transform = 'translateX(0px)';
+                lastTranslateX.current = 0;
+            }
+            return;
+        }
+        // Otherwise, it's a normal tap, so view the profile
+        onViewProfile(player.id);
+    };
+
+    return (
+        <div className="relative bg-poker-dark rounded-lg overflow-hidden">
+            {isUserAdmin && (
+                <div className="absolute top-0 left-0 h-full flex items-center z-0">
+                    <button
+                        onClick={handleDeleteClick}
+                        className="bg-red-600 text-white h-full w-20 flex flex-col items-center justify-center transition-colors hover:bg-red-700"
+                        aria-label={`Excluir ${player.name}`}
+                    >
+                        <TrashIcon />
+                        <span className="text-xs mt-1">Excluir</span>
+                    </button>
+                </div>
+            )}
+            <div
+                ref={swipeableContentRef}
+                className="relative z-10 bg-poker-dark"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+            >
+                <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 ${!player.isActive ? 'opacity-50' : ''}`}>
+                    <div className="flex items-center w-full sm:w-auto flex-grow mb-3 sm:mb-0" onClick={handleContentClick}>
+                        {isUserAdmin && (
+                            <input
+                                id={`cb-${player.id}`}
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => onSelect(player.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={!player.isActive}
+                                className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded mr-3 sm:mr-0"
+                            />
+                        )}
+                        <PlayerAvatar name={player.name} size="md" />
+                        <div className="ml-3 flex flex-col min-w-0">
+                            <span className="text-base font-semibold text-white text-left truncate">{player.name}</span>
+                            <div className="flex items-center space-x-2 text-poker-gray text-xs truncate">
+                                {player.whatsapp && <span>{player.whatsapp}</span>}
+                                {player.whatsapp && player.pixKey && <span>|</span>}
+                                {player.pixKey && <span>PIX: {player.pixKey}</span>}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 self-end sm:self-center">
+                        <MemoizedStatusToggle isActive={player.isActive} onToggle={() => onToggle(player.id)} disabled={!isUserAdmin} />
+                        {isUserAdmin && (
+                            <button onClick={() => onEdit(player)} className="p-2 text-poker-gray hover:text-poker-gold">
+                                <EditIcon />
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const Players: React.FC<PlayersProps> = ({ isUserAdmin, players, onAddPlayer, onUpdatePlayer, onDeletePlayer, onStartGame, onTogglePlayerStatus, onViewProfile }) => {
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
@@ -181,26 +330,17 @@ const Players: React.FC<PlayersProps> = ({ isUserAdmin, players, onAddPlayer, on
         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
           {players.length > 0 ? (
             sortedPlayers.map(player => (
-              <div key={player.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between bg-poker-dark p-3 rounded-lg ${!player.isActive ? 'opacity-50' : ''}`}>
-                <div className="flex items-center w-full sm:w-auto flex-grow mb-3 sm:mb-0">
-                  {isUserAdmin && (<input id={`cb-${player.id}`} type="checkbox" checked={selectedPlayers.has(player.id)} onChange={() => handlePlayerSelection(player.id)} disabled={!player.isActive} className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded"/>)}
-                  <PlayerAvatar name={player.name} size="md" />
-                  <div className="ml-3 flex flex-col">
-                      <button onClick={() => onViewProfile(player.id)} className="text-base font-semibold text-white text-left hover:text-poker-gold">{player.name}</button>
-                      <div className="flex items-center space-x-2 text-poker-gray text-xs">
-                        {player.whatsapp && <span>{player.whatsapp}</span>}
-                        {player.whatsapp && player.pixKey && <span>|</span>}
-                        {player.pixKey && <span>PIX: {player.pixKey}</span>}
-                      </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 self-end sm:self-center">
-                    <MemoizedStatusToggle isActive={player.isActive} onToggle={() => onTogglePlayerStatus(player.id)} disabled={!isUserAdmin} />
-                    {isUserAdmin && (
-                        <button onClick={() => handleOpenModal(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
-                    )}
-                </div>
-              </div>
+              <PlayerListItem
+                key={player.id}
+                player={player}
+                isSelected={selectedPlayers.has(player.id)}
+                isUserAdmin={isUserAdmin}
+                onSelect={handlePlayerSelection}
+                onToggle={onTogglePlayerStatus}
+                onEdit={handleOpenModal}
+                onDelete={onDeletePlayer}
+                onViewProfile={onViewProfile}
+              />
             ))
           ) : (
             <p className="text-center text-poker-gray py-8">Nenhum jogador cadastrado.</p>
