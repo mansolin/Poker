@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
-import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import { 
+    onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInAnonymously 
+} from 'firebase/auth';
 import { 
     collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, Timestamp 
 } from 'firebase/firestore';
@@ -60,19 +62,32 @@ const App: React.FC = () => {
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
-                const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data() as Omit<AppUser, 'uid'>;
-                    setUser({ uid: firebaseUser.uid, ...userData });
-                } else {
-                    const newUser: AppUser = {
+                if (firebaseUser.isAnonymous) {
+                    // Handle anonymous user as a visitor
+                    setUser({
                         uid: firebaseUser.uid,
-                        name: firebaseUser.displayName || 'Novo Usuário',
-                        email: firebaseUser.email || '',
-                        role: 'pending',
-                    };
-                    await setDoc(doc(db, 'users', firebaseUser.uid), { name: newUser.name, email: newUser.email, role: newUser.role });
-                    setUser(newUser);
+                        name: 'Visitante',
+                        email: '',
+                        role: 'visitor',
+                    });
+                } else {
+                    // Handle signed-in (non-anonymous) users
+                    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data() as Omit<AppUser, 'uid'>;
+                        setUser({ uid: firebaseUser.uid, ...userData });
+                    } else {
+                        // This case is for first-time sign-in with a provider like Google
+                        // where a user document doesn't exist yet.
+                        const newUser: AppUser = {
+                            uid: firebaseUser.uid,
+                            name: firebaseUser.displayName || 'Novo Usuário',
+                            email: firebaseUser.email || '',
+                            role: 'pending',
+                        };
+                        await setDoc(doc(db, 'users', firebaseUser.uid), { name: newUser.name, email: newUser.email, role: newUser.role });
+                        setUser(newUser);
+                    }
                 }
             } else {
                 setUser(null); // User is logged out
@@ -159,8 +174,14 @@ const App: React.FC = () => {
         setActiveView(View.Ranking);
     }, []);
 
-    const handleEnterAsVisitor = () => {
-        setUser({ uid: 'visitor', name: 'Visitante', email: '', role: 'visitor' });
+    const handleEnterAsVisitor = async () => {
+        try {
+            await signInAnonymously(auth);
+            // onAuthStateChanged will now handle setting the user state.
+        } catch (error) {
+            console.error('Anonymous sign-in failed:', error);
+            showToast('Não foi possível entrar como visitante.', 'error');
+        }
     };
 
     const handleAddPlayer = useCallback(async (playerData: Omit<Player, 'id' | 'isActive'>) => {
