@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import type { GamePlayer, Player, GameDefaults } from '../types';
-import EditIcon from './icons/EditIcon';
 import PlusIcon from './icons/PlusIcon';
 import PlayerAvatar from './PlayerAvatar';
 import BlindsTimer from './BlindsTimer';
@@ -85,7 +84,15 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
             </div>
           ) : (
             <div className="flex items-center space-x-3">
-                <h2 className="text-xl sm:text-2xl font-bold text-white">Jogo: <span className="text-poker-gold">{gameName}</span></h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-white">
+                  Jogo: {isUserAdmin ? (
+                      <button onClick={() => setIsEditingName(true)} className="text-poker-gold hover:opacity-80 transition-opacity font-bold" title="Editar nome do jogo">
+                          {gameName}
+                      </button>
+                  ) : (
+                      <span className="text-poker-gold">{gameName}</span>
+                  )}
+                </h2>
                 <div className="relative inline-block px-3 py-1 text-xs font-semibold leading-tight text-white rounded-full bg-poker-green overflow-hidden">
                   <div 
                     className="absolute inset-0 bg-gradient-to-r from-poker-green via-green-400 to-poker-green animate-shimmer"
@@ -93,7 +100,6 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
                   ></div>
                   <span className="relative">Em Andamento</span>
                 </div>
-                {isUserAdmin && <button onClick={() => setIsEditingName(true)} className="text-poker-gray hover:text-poker-gold"><EditIcon /></button>}
             </div>
           )}
           {isUserAdmin && (
