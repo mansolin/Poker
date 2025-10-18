@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -87,7 +88,8 @@ const App: React.FC = () => {
         // Only set up listeners if user is determined (not undefined)
         if (user) {
             // Public data for visitors and approved users
-            if (user.role === 'visitor' || (user.role !== 'pending' && user.role !== 'visitor')) {
+            // FIX: Simplified conditional to avoid redundant check causing TypeScript error.
+            if (user.role !== 'pending') {
                  const playersQuery = query(collection(db, 'players'), orderBy('name', 'asc'));
                 listeners.push(onSnapshot(playersQuery, snapshot => {
                     const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
