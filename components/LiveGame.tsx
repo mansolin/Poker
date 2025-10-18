@@ -140,7 +140,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
                                     <button
                                         onClick={() => onRemovePlayerFromGame(player.id)}
                                         disabled={!isUserAdmin}
-                                        className="text-sm font-medium text-white hover:text-red-500 truncate disabled:cursor-not-allowed disabled:hover:text-white"
+                                        className="flex-grow text-left text-sm font-medium text-white hover:text-red-500 truncate disabled:cursor-not-allowed disabled:hover:text-white"
                                         title={isUserAdmin ? `Remover ${player.name.split(' ')[0]} do Jogo` : player.name}
                                     >
                                         <span className="sm:hidden">{player.name.split(' ')[0]}</span>
