@@ -18,11 +18,11 @@ interface LiveGameProps {
   onCancelGame: () => void;
   onGoToPlayers: () => void;
   onAddPlayerToGame: (playerId: string) => void;
-  onViewProfile: (playerId: string) => void;
+  onRemovePlayerFromGame: (playerId: string) => void;
   gameDefaults: GameDefaults;
 }
 
-const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, gameName, onAddRebuy, onRemoveRebuy, onUpdateFinalChips, onUpdateGameName, onEndGame, onCancelGame, onGoToPlayers, onAddPlayerToGame, onViewProfile, gameDefaults }) => {
+const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, gameName, onAddRebuy, onRemoveRebuy, onUpdateFinalChips, onUpdateGameName, onEndGame, onCancelGame, onGoToPlayers, onAddPlayerToGame, onRemovePlayerFromGame, gameDefaults }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(gameName || '');
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
@@ -137,7 +137,12 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
                             <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
                                 <div className="flex items-center space-x-2 sm:space-x-3">
                                     <PlayerAvatar name={player.name} size="sm" />
-                                    <button onClick={() => onViewProfile(player.id)} className="text-sm font-medium text-white hover:text-poker-gold truncate" title={player.name}>
+                                    <button
+                                        onClick={() => onRemovePlayerFromGame(player.id)}
+                                        disabled={!isUserAdmin}
+                                        className="text-sm font-medium text-white hover:text-red-500 truncate disabled:cursor-not-allowed disabled:hover:text-white"
+                                        title={isUserAdmin ? `Remover ${player.name.split(' ')[0]} do Jogo` : player.name}
+                                    >
                                         <span className="sm:hidden">{player.name.split(' ')[0]}</span>
                                         <span className="hidden sm:inline">{player.name}</span>
                                     </button>

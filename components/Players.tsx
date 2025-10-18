@@ -80,7 +80,7 @@ interface PlayersProps {
     players: Player[];
     onAddPlayer: (playerData: Omit<Player, 'id' | 'isActive'>) => Promise<void>;
     onUpdatePlayer: (player: Player) => Promise<void>;
-    onDeletePlayer: (playerId: string) => Promise<void>;
+    onDeleteMultiplePlayers: (playerIds: string[]) => Promise<void>;
     onStartGame: (playerIds: string[]) => Promise<void>;
     onTogglePlayerStatus: (playerId: string) => Promise<void>;
     onViewProfile: (playerId: string) => void;
@@ -91,7 +91,7 @@ const Players: React.FC<PlayersProps> = ({
     players,
     onAddPlayer,
     onUpdatePlayer,
-    onDeletePlayer,
+    onDeleteMultiplePlayers,
     onStartGame,
     onTogglePlayerStatus,
     onViewProfile,
@@ -120,6 +120,13 @@ const Players: React.FC<PlayersProps> = ({
             alert('Selecione pelo menos 2 jogadores para iniciar um jogo.');
         } else {
             onStartGame(selectedPlayers);
+            setSelectedPlayers([]);
+        }
+    };
+    
+    const handleDeleteSelectedClick = () => {
+        if (selectedPlayers.length > 0) {
+            onDeleteMultiplePlayers(selectedPlayers);
             setSelectedPlayers([]);
         }
     };
@@ -158,6 +165,9 @@ const Players: React.FC<PlayersProps> = ({
                             <button onClick={handleOpenAddModal} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
                                 <span className="mr-2 h-5 w-5"><PlusIcon /></span>Novo Jogador
                             </button>
+                            <button onClick={handleDeleteSelectedClick} disabled={selectedPlayers.length === 0} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-red-800 text-white shadow-md hover:bg-red-700 disabled:bg-poker-gray/50 disabled:cursor-not-allowed">
+                                <span className="mr-2 h-5 w-5"><TrashIcon /></span>Excluir ({selectedPlayers.length})
+                            </button>
                             <button onClick={handleStartGameClick} disabled={selectedPlayers.length < 2} className="w-full sm:w-auto px-4 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">
                                 Iniciar Jogo ({selectedPlayers.length})
                             </button>
@@ -182,7 +192,6 @@ const Players: React.FC<PlayersProps> = ({
                                         <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 self-end sm:self-center">
                                             <button onClick={() => onTogglePlayerStatus(player.id)} className="px-3 py-1 text-xs text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20 rounded-md">Inativar</button>
                                             <button onClick={() => handleOpenEditModal(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
-                                            <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button>
                                         </div>
                                     )}
                                 </div>
@@ -204,7 +213,6 @@ const Players: React.FC<PlayersProps> = ({
                                         <div className="flex items-center space-x-2 flex-shrink-0">
                                             <button onClick={() => onTogglePlayerStatus(player.id)} className="px-3 py-1 text-xs text-green-400 bg-green-400/10 hover:bg-green-400/20 rounded-md">Ativar</button>
                                             <button onClick={() => handleOpenEditModal(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
-                                            <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-poker-gray hover:text-red-500"><TrashIcon /></button>
                                         </div>
                                     </div>
                                 ))}
