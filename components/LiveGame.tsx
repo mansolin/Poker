@@ -111,20 +111,45 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
       <div className="bg-poker-light rounded-lg shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-poker-dark">
-            <thead className="bg-poker-dark"><tr><th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Nome</th><th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Rebuys (R${gameDefaults.rebuy})</th><th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Investido (R$)</th><th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Fichas Finais</th><th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Resultado (R$)</th></tr></thead>
-            <tbody className="bg-poker-light divide-y divide-poker-dark">
-                {players.map(player => {
-                  const profit = player.finalChips - player.totalInvested;
-                  return (
-                    <tr key={player.id} className="hover:bg-poker-dark/50">
-                        <td className="px-4 py-3 whitespace-nowrap"><div className="flex items-center space-x-3"><PlayerAvatar name={player.name} size="sm" /><button onClick={() => onViewProfile(player.id)} className="text-sm font-medium text-white hover:text-poker-gold">{player.name}</button></div></td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-poker-gray"><div className="flex items-center space-x-2"><button onClick={() => onRemoveRebuy(player.id)} disabled={player.rebuys === 0 || !isUserAdmin} className="bg-red-600 hover:bg-red-700 text-white h-6 w-6 rounded-full flex items-center justify-center text-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">-</button><span className="font-semibold text-white w-5 text-center">{player.rebuys}</span><button onClick={() => onAddRebuy(player.id)} disabled={!isUserAdmin} className="bg-poker-green hover:bg-poker-green/80 text-white h-6 w-6 rounded-full flex items-center justify-center text-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">+</button></div></td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-poker-gold">R$ {player.totalInvested.toLocaleString('pt-BR')}</td>
-                        <td className="px-4 py-3 whitespace-nowrap"><input type="number" min="0" value={player.finalChips} disabled={!isUserAdmin} onChange={(e) => onUpdateFinalChips(player.id, Math.max(0, parseInt(e.target.value, 10) || 0))} onFocus={handleFocus} className="w-24 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed" placeholder="0"/></td>
-                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>R$ {profit.toLocaleString('pt-BR')}</td>
-                    </tr>);
-                })}
-            </tbody></table>
+                <thead className="bg-poker-dark">
+                    <tr>
+                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Nome</th>
+                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Rebuys<span className="hidden sm:inline"> (R${gameDefaults.rebuy})</span></th>
+                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Invest<span className="hidden sm:inline">. (R$)</span></th>
+                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Fichas</th>
+                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Resultado<span className="hidden sm:inline"> (R$)</span></th>
+                    </tr>
+                </thead>
+                <tbody className="bg-poker-light divide-y divide-poker-dark">
+                    {players.map(player => {
+                      const profit = player.finalChips - player.totalInvested;
+                      return (
+                        <tr key={player.id} className="hover:bg-poker-dark/50">
+                            <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center space-x-2 sm:space-x-3">
+                                    <PlayerAvatar name={player.name} size="sm" />
+                                    <button onClick={() => onViewProfile(player.id)} className="text-sm font-medium text-white hover:text-poker-gold truncate" title={player.name}>
+                                        <span className="sm:hidden">{player.name.split(' ')[0]}</span>
+                                        <span className="hidden sm:inline">{player.name}</span>
+                                    </button>
+                                </div>
+                            </td>
+                            <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm text-poker-gray">
+                                <div className="flex items-center space-x-1 sm:space-x-2">
+                                    <button onClick={() => onRemoveRebuy(player.id)} disabled={player.rebuys === 0 || !isUserAdmin} className="bg-red-600 hover:bg-red-700 text-white h-6 w-6 rounded-full flex items-center justify-center text-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">-</button>
+                                    <span className="font-semibold text-white w-5 text-center">{player.rebuys}</span>
+                                    <button onClick={() => onAddRebuy(player.id)} disabled={!isUserAdmin} className="bg-poker-green hover:bg-poker-green/80 text-white h-6 w-6 rounded-full flex items-center justify-center text-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">+</button>
+                                </div>
+                            </td>
+                            <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm font-bold text-poker-gold">R$ {player.totalInvested.toLocaleString('pt-BR')}</td>
+                            <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                                <input type="number" min="0" value={player.finalChips} disabled={!isUserAdmin} onChange={(e) => onUpdateFinalChips(player.id, Math.max(0, parseInt(e.target.value, 10) || 0))} onFocus={handleFocus} className="w-20 sm:w-24 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed" placeholder="0"/>
+                            </td>
+                            <td className={`px-2 sm:px-4 py-3 whitespace-nowrap text-sm font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>R$ {profit.toLocaleString('pt-BR')}</td>
+                        </tr>);
+                    })}
+                </tbody>
+            </table>
         </div>
       </div>
       
