@@ -3,6 +3,8 @@ import type { Session, Player, GamePlayer } from '../types';
 import PlayerAvatar from './PlayerAvatar';
 import BarChartIcon from './icons/BarChartIcon';
 import SessionGraphModal from './SessionGraphModal';
+import EditIcon from './icons/EditIcon';
+
 
 interface SessionDetailModalProps {
   isUserAdmin: boolean;
@@ -23,6 +25,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
 }) => {
   const [editedSession, setEditedSession] = useState<Session>(session);
   const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   
   useEffect(() => {
     setEditedSession(session);
@@ -45,6 +48,11 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     });
     setEditedSession(prev => ({ ...prev, players: updatedPlayers }));
   };
+
+  const handleCancelEdit = () => {
+    setEditedSession(session);
+    setIsEditing(false);
+  };
   
   const handleSave = () => {
     if (isUserAdmin && !/^\d{2}\/\d{2}\/\d{2}$/.test(editedSession.name.trim())) {
@@ -56,7 +64,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
       return;
     }
     onSave(editedSession);
-    onClose();
+    setIsEditing(false);
   };
   
   const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +89,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
             <div className="flex items-center gap-2">
                 <h3 className="text-xl font-bold text-white">Detalhes do Jogo:</h3>
                  {isUserAdmin ? (
-                    <input type="text" value={editedSession.name} onChange={handleGameNameChange} placeholder="DD/MM/AA" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg p-2 w-32" />
+                    <input type="text" value={editedSession.name} disabled={!isEditing} onChange={handleGameNameChange} placeholder="DD/MM/AA" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg p-2 w-32 disabled:bg-transparent disabled:border-transparent" />
                  ) : (
                     <span className="text-xl font-bold text-poker-gold">{editedSession.name}</span>
                  )}
@@ -90,6 +98,11 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 <button onClick={() => setIsGraphModalOpen(true)} className="flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
                     <span className="h-5 w-5 mr-2"><BarChartIcon/></span>Gráfico
                 </button>
+                {isUserAdmin && !isEditing && (
+                    <button onClick={() => setIsEditing(true)} className="flex items-center px-3 py-2 text-sm font-semibold text-white bg-poker-gold hover:bg-poker-gold/80 rounded-lg">
+                        <span className="h-5 w-5 mr-2"><EditIcon/></span>Editar Jogo
+                    </button>
+                )}
                 <button onClick={onClose} className="text-poker-gray hover:text-white text-3xl leading-none">&times;</button>
             </div>
         </header>
@@ -122,7 +135,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                                         type="number" 
                                         min="0"
                                         value={player.finalChips} 
-                                        disabled={!isUserAdmin}
+                                        disabled={!isEditing}
                                         onChange={(e) => handlePlayerChange(player.id, 'finalChips', Math.max(0, parseInt(e.target.value, 10) || 0))} 
                                         onFocus={handleFocus}
                                         className="w-24 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed" 
@@ -135,7 +148,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                                     <input 
                                         type="checkbox"
                                         checked={!!player.paid}
-                                        disabled={!isUserAdmin || profit >= 0}
+                                        disabled={!isEditing || profit >= 0}
                                         onChange={(e) => handlePlayerChange(player.id, 'paid', e.target.checked)}
                                         className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded disabled:opacity-50"
                                     />
@@ -145,9 +158,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                     </tbody>
                 </table>
             </div>
-        </main>
-        <footer className="p-4 border-t border-poker-dark flex-shrink-0">
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="bg-poker-dark p-3 rounded-lg text-center"><h3 className="text-sm font-semibold text-poker-gray uppercase">Montante (R$)</h3><p className="text-2xl font-bold text-poker-gold">R$ {totalCash.toLocaleString('pt-BR')}</p></div>
                 <div className={`bg-poker-dark p-3 rounded-lg text-center border-2 ${chipsMatch ? 'border-transparent' : 'border-red-500'}`}>
                     <h3 className="text-sm font-semibold text-poker-gray uppercase">Fichas Distribuídas</h3><p className={`text-2xl font-bold ${chipsMatch ? 'text-white' : 'text-red-500'}`}>{distributedChips.toLocaleString('pt-BR')}</p>
@@ -155,14 +166,14 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 </div>
                 <div className="bg-poker-dark p-3 rounded-lg text-center"><h3 className="text-sm font-semibold text-poker-gray uppercase">Total em Fichas</h3><p className="text-2xl font-bold text-white">{totalCash.toLocaleString('pt-BR')}</p></div>
             </div>
-            {isUserAdmin && (
-                <div className="flex justify-end items-center gap-2">
+            {isUserAdmin && isEditing && (
+                <div className="flex justify-end items-center gap-2 mt-6">
                     {!chipsMatch && totalCash > 0 && <p className="text-sm text-yellow-400 animate-pulse mr-auto">Ajuste as fichas para poder salvar.</p>}
-                    <button onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark/50 rounded-lg text-sm">Cancelar</button>
-                    <button onClick={handleSave} disabled={!chipsMatch || totalCash === 0} title={!chipsMatch ? "O total de fichas deve ser igual ao montante" : "Salvar alterações"} className="px-5 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">Salvar</button>
+                    <button onClick={handleCancelEdit} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark/50 rounded-lg text-sm">Cancelar</button>
+                    <button onClick={handleSave} disabled={!chipsMatch || totalCash === 0} title={!chipsMatch ? "O total de fichas deve ser igual ao montante" : "Salvar alterações"} className="px-5 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">Salvar Alterações</button>
                 </div>
             )}
-        </footer>
+        </main>
       </div>
     </div>
 

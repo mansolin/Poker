@@ -18,23 +18,23 @@ const GameCard: React.FC<GameCardProps> = ({ session, onClick }) => {
   }, [session]);
 
   return (
-    <div onClick={onClick} className="bg-poker-dark rounded-lg shadow-lg p-4 cursor-pointer hover:scale-105 hover:shadow-poker-gold/20 transition-all duration-200 flex flex-col justify-between h-48">
+    <div onClick={onClick} className="bg-poker-dark rounded-lg shadow-lg p-3 cursor-pointer hover:scale-105 hover:shadow-poker-gold/20 transition-all duration-200 flex flex-col justify-between h-44">
       <div>
         <div className="flex justify-between items-center mb-2">
-          <h3 className="font-bold text-lg text-white">{session.name}</h3>
+          <h3 className="font-bold text-base text-white">{session.name}</h3>
           <span className="text-xs text-poker-gray">{session.players.length} jogadores</span>
         </div>
-        <div className="text-center bg-poker-dark/50 border-t border-b border-poker-light/50 py-2">
+        <div className="text-center bg-poker-dark/50 border-t border-b border-poker-light/50 py-1">
           <p className="text-xs uppercase text-poker-gray">Montante Total</p>
-          <p className="text-2xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
+          <p className="text-xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
         </div>
       </div>
       
       {winner && (
-        <div className="flex items-center mt-3">
-          <span className="text-poker-gold mr-2 h-5 w-5"><TrophyIcon/></span>
+        <div className="flex items-center mt-2">
+          <span className="text-poker-gold mr-2 h-4 w-4"><TrophyIcon/></span>
           <div className="flex-grow flex items-center min-w-0">
-            <PlayerAvatar name={winner.name} size="sm" />
+            <PlayerAvatar name={winner.name} size="xs" />
             <div className="ml-2 min-w-0">
               <p className="text-xs text-poker-gray truncate">Vencedor</p>
               <p className="text-sm font-semibold text-white truncate" title={winner.name}>{winner.name}</p>

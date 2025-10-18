@@ -58,7 +58,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({
           <h2 className="text-xl font-bold text-white">Histórico de Jogos</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[70vh] overflow-y-auto pr-2">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[70vh] overflow-y-auto pr-2">
           {sessionHistory.map(session => (
             <GameCard key={session.id} session={session} onClick={() => handleSessionClick(session)} />
           ))}

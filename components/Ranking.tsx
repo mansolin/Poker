@@ -136,7 +136,7 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile, onView
     return (
         <>
             <div className="space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
                    <StatCard 
                         icon={<CrownIcon />}
                         title="Maior Ganhador (Total)"
@@ -166,7 +166,7 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile, onView
                 </div>
                 
                 <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
-                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
                         <div className="flex border-b border-poker-dark">
                             <button onClick={() => setFilterType('acumulado')} className={`px-4 py-2 text-sm font-semibold transition-colors ${filterType === 'acumulado' ? 'text-poker-gold border-b-2 border-poker-gold' : 'text-poker-gray hover:text-white'}`}>
                                 Acumulado
@@ -193,23 +193,26 @@ const Ranking: React.FC<RankingProps> = ({ sessionHistory, onViewProfile, onView
                             </button>
                         </div>
                     </div>
-                    <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-2">
+                    <div className="space-y-1 max-h-[55vh] overflow-y-auto pr-2">
                         {filteredRankingData.rankedPlayers.map((player, index) => (
-                            <div key={player.id} className={`flex items-center bg-poker-dark p-3 rounded-lg border-l-4 ${getRankColor(index)}`}>
-                                <div className="w-8 text-center text-poker-gray font-bold flex-shrink-0">{getRankIcon(index)}</div>
-                                <PlayerAvatar name={player.name} />
-                                <div className="ml-4 flex-grow cursor-pointer" onClick={() => onViewProfile(player.id)}>
-                                    <p className="font-semibold text-white hover:text-poker-gold">{player.name}</p>
+                            <div key={player.id} className={`flex items-center bg-poker-dark py-1 px-2 rounded-lg border-l-4 ${getRankColor(index)}`}>
+                                <div className="w-6 h-6 flex items-center justify-center text-poker-gray font-bold flex-shrink-0">{getRankIcon(index)}</div>
+                                <PlayerAvatar name={player.name} size="xs" />
+                                <div className="ml-2 flex-grow cursor-pointer min-w-0" onClick={() => onViewProfile(player.id)}>
+                                    <p className="text-sm text-white hover:text-poker-gold truncate">{player.name}</p>
                                     <p className="text-xs text-poker-gray">{player.gamesPlayed} jogos</p>
                                 </div>
-                                <div className="text-right ml-4">
-                                    <p className={`font-bold text-lg ${player.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <div className="flex-shrink-0 ml-auto text-right w-24">
+                                    <p className={`text-sm font-semibold ${player.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                         R$ {player.profit.toLocaleString('pt-BR')}
                                     </p>
-                                    <p className="text-xs text-poker-gray">{player.winRate.toFixed(1)}% de vitórias</p>
+                                    <p className="text-xs text-poker-gray">{player.winRate.toFixed(0)}% vitórias</p>
                                 </div>
                             </div>
                         ))}
+                        {filteredRankingData.rankedPlayers.length === 0 && (
+                          <p className="text-center text-poker-gray py-8">Nenhum dado para o filtro selecionado.</p>
+                        )}
                     </div>
                 </div>
             </div>
