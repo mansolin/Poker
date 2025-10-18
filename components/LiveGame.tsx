@@ -123,7 +123,10 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
                         <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Rebuys<span className="hidden sm:inline"> (R${gameDefaults.rebuy})</span></th>
                         <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Invest<span className="hidden sm:inline">. (R$)</span></th>
                         <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Fichas</th>
-                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Resultado<span className="hidden sm:inline"> (R$)</span></th>
+                        <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">
+                            <span className="sm:hidden">Resul.</span>
+                            <span className="hidden sm:inline">Resultado (R$)</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody className="bg-poker-light divide-y divide-poker-dark">
@@ -149,7 +152,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
                             </td>
                             <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm font-bold text-poker-gold">R$ {player.totalInvested.toLocaleString('pt-BR')}</td>
                             <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
-                                <input type="number" min="0" value={player.finalChips} disabled={!isUserAdmin} onChange={(e) => onUpdateFinalChips(player.id, Math.max(0, parseInt(e.target.value, 10) || 0))} onFocus={handleFocus} className="w-20 sm:w-24 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed" placeholder="0"/>
+                                <input type="number" min="0" value={player.finalChips} disabled={!isUserAdmin} onChange={(e) => onUpdateFinalChips(player.id, Math.max(0, parseInt(e.target.value, 10) || 0))} onFocus={handleFocus} className="w-16 sm:w-24 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed" placeholder="0"/>
                             </td>
                             <td className={`px-2 sm:px-4 py-3 whitespace-nowrap text-sm font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>R$ {profit.toLocaleString('pt-BR')}</td>
                         </tr>);
