@@ -215,23 +215,20 @@ const App: React.FC = () => {
         }
     }, []);
     
-    const handleDeleteMultiplePlayers = useCallback(async (playerIds: string[]) => {
-        if (playerIds.length === 0) return;
-        if (window.confirm(`Tem certeza que deseja excluir ${playerIds.length} jogador(es) selecionado(s)? Esta ação não pode ser desfeita.`)) {
+    const handleDeletePlayer = useCallback(async (playerId: string) => {
+        const playerToDelete = players.find(p => p.id === playerId);
+        if (!playerToDelete) return;
+
+        if (window.confirm(`Tem certeza que deseja excluir ${playerToDelete.name}? Esta ação não pode ser desfeita.`)) {
             try {
-                const batch = writeBatch(db);
-                playerIds.forEach(playerId => {
-                    const playerRef = doc(db, 'players', playerId);
-                    batch.delete(playerRef);
-                });
-                await batch.commit();
-                showToast(`${playerIds.length} jogador(es) excluído(s) com sucesso!`);
+                await deleteDoc(doc(db, 'players', playerId));
+                showToast(`${playerToDelete.name} foi excluído com sucesso!`);
             } catch (error) {
                 console.error(error);
-                showToast('Erro ao excluir jogadores.', 'error');
+                showToast('Erro ao excluir jogador.', 'error');
             }
         }
-    }, []);
+    }, [players]);
 
     const handleTogglePlayerStatus = useCallback(async (playerId: string) => {
         const player = players.find(p => p.id === playerId);
@@ -488,7 +485,7 @@ const App: React.FC = () => {
             case View.LiveGame:
                 return <LiveGame isUserAdmin={isUserAdmin} players={liveGame?.players || []} allPlayers={players} gameName={liveGame?.name || null} onAddRebuy={handleAddRebuy} onRemoveRebuy={handleRemoveRebuy} onUpdateFinalChips={handleUpdateFinalChips} onUpdateGameName={handleUpdateGameName} onEndGame={handleEndGame} onCancelGame={handleCancelGame} onGoToPlayers={() => setActiveView(View.Players)} onAddPlayerToGame={handleAddPlayerToGame} onRemovePlayerFromGame={handleRemovePlayerFromGame} gameDefaults={gameDefaults} />;
             case View.Players:
-                return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onUpdatePlayer={handleUpdatePlayer} onDeleteMultiplePlayers={handleDeleteMultiplePlayers} onStartGame={handleStartGame} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
+                return <Players isUserAdmin={isUserAdmin} players={players} onAddPlayer={handleAddPlayer} onUpdatePlayer={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} onStartGame={handleStartGame} onTogglePlayerStatus={handleTogglePlayerStatus} onViewProfile={handleViewProfile} />;
             case View.SessionHistory:
                 return <SessionHistory isUserAdmin={isUserAdmin} sessionHistory={sessionHistory} players={players} onEditHistoricGame={handleEditHistoricGame} onViewProfile={handleViewProfile} initialSessionId={initialSessionId} onClearInitialSession={() => setInitialSessionId(null)} />;
             case View.Ranking:

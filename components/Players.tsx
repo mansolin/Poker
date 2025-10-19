@@ -11,13 +11,15 @@ interface PlayerFormModalProps {
     player: Player | null;
     onSave: (playerData: Omit<Player, 'id' | 'isActive'>) => void;
     onClose: () => void;
+    onDelete: (playerId: string) => Promise<void>;
 }
 
-const PlayerFormModal: React.FC<PlayerFormModalProps> = ({ player, onSave, onClose }) => {
+const PlayerFormModal: React.FC<PlayerFormModalProps> = ({ player, onSave, onClose, onDelete }) => {
     const [name, setName] = useState(player?.name || '');
     const [whatsapp, setWhatsapp] = useState(player?.whatsapp || '');
     const [pixKey, setPixKey] = useState(player?.pixKey || '');
     const [isLoading, setIsLoading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const handleWhatsappChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let value = e.target.value.replace(/\D/g, '');
@@ -39,6 +41,17 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({ player, onSave, onClo
         await onSave({ name, whatsapp, pixKey });
         setIsLoading(false);
     };
+    
+    const handleDelete = async () => {
+        if (player && onDelete) {
+            setIsDeleting(true);
+            await onDelete(player.id);
+            // The component will unmount, but setting state is safer
+            setIsDeleting(false);
+            onClose();
+        }
+    };
+
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -62,11 +75,26 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({ player, onSave, onClo
                             <input id="pixKey" type="text" value={pixKey} onChange={(e) => setPixKey(e.target.value)} className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5" />
                         </div>
                     </div>
-                    <footer className="p-4 border-t border-poker-dark flex justify-end items-center space-x-2">
-                       <button type="button" onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
-                       <button type="submit" disabled={isLoading} className="w-28 h-10 flex justify-center items-center text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm">
-                           {isLoading ? <SpinnerIcon /> : 'Salvar'}
-                       </button>
+                    <footer className="p-4 border-t border-poker-dark flex justify-between items-center">
+                        <div>
+                            {player && (
+                                <button
+                                    type="button"
+                                    onClick={handleDelete}
+                                    disabled={isLoading || isDeleting}
+                                    className="flex items-center px-3 py-2 text-sm font-semibold text-red-400 bg-transparent hover:bg-red-500/10 rounded-lg disabled:opacity-50"
+                                >
+                                    {isDeleting ? <SpinnerIcon /> : <TrashIcon />}
+                                    <span className="ml-2 hidden sm:inline">Excluir Jogador</span>
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                           <button type="button" onClick={onClose} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
+                           <button type="submit" disabled={isLoading || isDeleting} className="w-28 h-10 flex justify-center items-center text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm">
+                               {isLoading ? <SpinnerIcon /> : 'Salvar'}
+                           </button>
+                        </div>
                     </footer>
                 </form>
             </div>
@@ -80,7 +108,7 @@ interface PlayersProps {
     players: Player[];
     onAddPlayer: (playerData: Omit<Player, 'id' | 'isActive'>) => Promise<void>;
     onUpdatePlayer: (player: Player) => Promise<void>;
-    onDeleteMultiplePlayers: (playerIds: string[]) => Promise<void>;
+    onDeletePlayer: (playerId: string) => Promise<void>;
     onStartGame: (playerIds: string[]) => Promise<void>;
     onTogglePlayerStatus: (playerId: string) => Promise<void>;
     onViewProfile: (playerId: string) => void;
@@ -91,7 +119,7 @@ const Players: React.FC<PlayersProps> = ({
     players,
     onAddPlayer,
     onUpdatePlayer,
-    onDeleteMultiplePlayers,
+    onDeletePlayer,
     onStartGame,
     onTogglePlayerStatus,
     onViewProfile,
@@ -120,13 +148,6 @@ const Players: React.FC<PlayersProps> = ({
             alert('Selecione pelo menos 2 jogadores para iniciar um jogo.');
         } else {
             onStartGame(selectedPlayers);
-            setSelectedPlayers([]);
-        }
-    };
-    
-    const handleDeleteSelectedClick = () => {
-        if (selectedPlayers.length > 0) {
-            onDeleteMultiplePlayers(selectedPlayers);
             setSelectedPlayers([]);
         }
     };
@@ -165,9 +186,6 @@ const Players: React.FC<PlayersProps> = ({
                             <button onClick={handleOpenAddModal} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
                                 <span className="mr-2 h-5 w-5"><PlusIcon /></span>Novo Jogador
                             </button>
-                            <button onClick={handleDeleteSelectedClick} disabled={selectedPlayers.length === 0} className="flex items-center justify-center w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md bg-red-800 text-white shadow-md hover:bg-red-700 disabled:bg-poker-gray/50 disabled:cursor-not-allowed">
-                                <span className="mr-2 h-5 w-5"><TrashIcon /></span>Excluir ({selectedPlayers.length})
-                            </button>
                             <button onClick={handleStartGameClick} disabled={selectedPlayers.length < 2} className="w-full sm:w-auto px-4 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">
                                 Iniciar Jogo ({selectedPlayers.length})
                             </button>
@@ -181,17 +199,17 @@ const Players: React.FC<PlayersProps> = ({
                         <h3 className="text-base font-semibold text-poker-gray uppercase tracking-wider mb-2 border-b border-poker-dark pb-1">Ativos ({activePlayers.length})</h3>
                         <div className="space-y-2">
                             {activePlayers.map(player => (
-                                <div key={player.id} className={`flex flex-col sm:flex-row items-start sm:items-center p-2 rounded-lg transition-colors ${selectedPlayers.includes(player.id) ? 'bg-poker-green/20' : 'bg-poker-dark'}`}>
-                                    {isUserAdmin && <input type="checkbox" checked={selectedPlayers.includes(player.id)} onChange={() => handleToggleSelectPlayer(player.id)} className="w-5 h-5 mr-4 rounded bg-poker-light border-poker-gray text-poker-green focus:ring-poker-green flex-shrink-0" />}
+                                <div key={player.id} className={`flex items-center p-2 rounded-lg transition-colors ${selectedPlayers.includes(player.id) ? 'bg-poker-green/20' : 'bg-poker-dark'}`}>
+                                    {isUserAdmin && <input type="checkbox" checked={selectedPlayers.includes(player.id)} onChange={() => handleToggleSelectPlayer(player.id)} className="w-5 h-5 mr-3 rounded bg-poker-light border-poker-gray text-poker-green focus:ring-poker-green flex-shrink-0" />}
                                     <PlayerAvatar name={player.name} />
-                                    <div className="flex-grow ml-3 my-2 sm:my-0">
-                                        <button onClick={() => onViewProfile(player.id)} className="font-semibold text-white hover:text-poker-gold text-left">{player.name}</button>
-                                        {player.whatsapp && <a href={`https://wa.me/${player.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-xs text-poker-gray hover:text-green-400 mt-1"><WhatsAppIcon /> <span className="ml-1.5">{player.whatsapp}</span></a>}
+                                    <div className="flex-grow ml-3 min-w-0">
+                                        <button onClick={() => handleOpenEditModal(player)} className="font-semibold text-white hover:text-poker-gold text-left truncate w-full" title={player.name}>{player.name}</button>
+                                        {player.whatsapp && <a href={`https://wa.me/${player.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center text-xs text-poker-gray hover:text-green-400 mt-1"><WhatsAppIcon /> <span className="ml-1.5">{player.whatsapp}</span></a>}
                                     </div>
                                     {isUserAdmin && (
-                                        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 self-end sm:self-center">
+                                        <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                                            <button onClick={() => onViewProfile(player.id)} className="px-3 py-1 text-xs text-blue-400 bg-blue-400/10 hover:bg-blue-400/20 rounded-md">Perfil</button>
                                             <button onClick={() => onTogglePlayerStatus(player.id)} className="px-3 py-1 text-xs text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20 rounded-md">Inativar</button>
-                                            <button onClick={() => handleOpenEditModal(player)} className="p-2 text-poker-gray hover:text-poker-gold"><EditIcon /></button>
                                         </div>
                                     )}
                                 </div>
@@ -227,6 +245,7 @@ const Players: React.FC<PlayersProps> = ({
                     player={editingPlayer}
                     onSave={handleSavePlayer}
                     onClose={handleCloseModal}
+                    onDelete={onDeletePlayer}
                 />
             )}
         </>
