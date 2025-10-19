@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { 
-    onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInAnonymously 
+    onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInAnonymously,
+    setPersistence, browserSessionPersistence
 } from 'firebase/auth';
 import { 
     collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, Timestamp 
@@ -175,6 +176,8 @@ const App: React.FC = () => {
 
     const handleEnterAsVisitor = async () => {
         try {
+            // Use session persistence for visitors, so they are logged out when the session ends.
+            await setPersistence(auth, browserSessionPersistence);
             await signInAnonymously(auth);
             // onAuthStateChanged will now handle setting the user state.
         } catch (error) {

@@ -21,19 +21,22 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setActiveView, onOpenMenu, userRole, onLogout }) => {
   const navItems = [
     { view: View.LiveGame, icon: <PokerChipIcon /> },
-    { view: View.Players, icon: <UsersIcon /> },
-    { view: View.SessionHistory, icon: <HistoryIcon /> },
     { view: View.Ranking, icon: <TrophyIcon /> },
+    { view: View.SessionHistory, icon: <HistoryIcon /> },
+    { view: View.Players, icon: <UsersIcon /> },
     { view: View.Cashier, icon: <CashierIcon /> },
   ];
 
-  const isViewDisabled = (view: View): boolean => {
+  const visibleNavItems = navItems.filter(item => {
     if (userRole === 'visitor') {
-      // Visitors can only see Ranking, History, and the Live Game
-      return ![View.Ranking, View.SessionHistory, View.LiveGame].includes(view);
+      return [View.LiveGame, View.Ranking, View.SessionHistory].includes(item.view);
     }
+    return true; // Show all for other roles
+  });
+  
+  const isViewDisabled = (view: View): boolean => {
     if (!isUserAuthenticated) {
-        // Disables Players and Cashier for non-authenticated (but not visitor) roles like pending
+        // Disables Players and Cashier for non-authenticated roles like 'pending'
         return [View.Players, View.Cashier].includes(view);
     }
     return false;
@@ -51,7 +54,7 @@ const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setAct
         <div className="flex-grow flex justify-center">
             <nav>
                 <ul className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
-                {navItems.map(item => (
+                {visibleNavItems.map(item => (
                     <li key={item.view}>
                     <button
                         onClick={() => setActiveView(item.view)}
