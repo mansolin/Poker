@@ -396,9 +396,9 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const handleSettleDebts = useCallback(async (playerId: string) => {
+    const handleSettleBalance = useCallback(async (playerId: string) => {
         const player = players.find(p => p.id === playerId);
-        if (player && window.confirm(`Tem certeza que deseja quitar todas as dívidas de ${player.name}?`)) {
+        if (player && window.confirm(`Tem certeza que deseja quitar todas as pendências de ${player.name}?`)) {
             try {
                 const batch = writeBatch(db);
                 const sessionsToUpdate = sessionHistory.filter(s => s.players.some(p => p.id === playerId && !p.paid));
@@ -408,10 +408,10 @@ const App: React.FC = () => {
                     batch.update(doc(db, 'sessions', session.id), { players: updatedPlayers });
                 });
                 await batch.commit();
-                showToast('Dívidas quitadas com sucesso!');
+                showToast('Pendências quitadas com sucesso!');
             } catch (error) {
                 console.error(error);
-                showToast('Erro ao quitar dívidas.', 'error');
+                showToast('Erro ao quitar pendências.', 'error');
             }
         }
     }, [players, sessionHistory]);
@@ -491,7 +491,7 @@ const App: React.FC = () => {
             case View.Ranking:
                 return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
             case View.Cashier:
-                return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleDebts={handleSettleDebts} onViewProfile={handleViewProfile} />;
+                return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleBalance={handleSettleBalance} onViewProfile={handleViewProfile} />;
             case View.Settings:
                  return isUserAuthenticated && isUserAdmin ? <Settings isUserOwner={isUserOwner} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} /> : null;
             default:
