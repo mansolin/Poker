@@ -29,15 +29,15 @@ const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setAct
 
   const visibleNavItems = navItems.filter(item => {
     if (userRole === 'visitor') {
-      return [View.LiveGame, View.Ranking, View.SessionHistory].includes(item.view);
+      return [View.LiveGame, View.Ranking, View.SessionHistory, View.Cashier].includes(item.view);
     }
     return true; // Show all for other roles
   });
   
   const isViewDisabled = (view: View): boolean => {
     if (!isUserAuthenticated) {
-        // Disables Players and Cashier for non-authenticated roles like 'pending'
-        return [View.Players, View.Cashier].includes(view);
+        // Disables Players view for non-authenticated roles like 'visitor' or 'pending'
+        return [View.Players].includes(view);
     }
     return false;
   };
