@@ -22,10 +22,12 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [buyIn, setBuyIn] = useState(gameDefaults.buyIn);
     const [rebuy, setRebuy] = useState(gameDefaults.rebuy);
+    const [clubPixKey, setClubPixKey] = useState(gameDefaults.clubPixKey || '');
 
     useEffect(() => {
         setBuyIn(gameDefaults.buyIn);
         setRebuy(gameDefaults.rebuy);
+        setClubPixKey(gameDefaults.clubPixKey || '');
     }, [gameDefaults]);
 
     const handleGenerateData = async () => {
@@ -62,7 +64,7 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
     };
 
     const handleSaveDefaults = () => {
-        onSaveDefaults({ buyIn, rebuy });
+        onSaveDefaults({ buyIn, rebuy, clubPixKey });
     };
     
     return (
@@ -73,16 +75,20 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
                 <div className="space-y-8">
 
                     <div className="bg-poker-dark p-4 rounded-lg">
-                        <h3 className="text-lg font-semibold text-white mb-2">Valores Padrão</h3>
-                        <p className="text-sm text-poker-gray mb-4">Defina valores padrão para buy-in e rebuys.</p>
-                        <div className="flex items-center space-x-4 mb-4">
+                        <h3 className="text-lg font-semibold text-white mb-2">Valores Padrão e PIX</h3>
+                        <p className="text-sm text-poker-gray mb-4">Defina valores padrão para o jogo e a chave PIX do clube.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label className="text-xs text-poker-gray">Buy-in Padrão (R$)</label>
-                                <input type="number" value={buyIn} onChange={e => setBuyIn(Number(e.target.value))} className="w-28 bg-poker-light border border-poker-gray/20 text-white text-sm rounded-lg p-2" />
+                                <input type="number" value={buyIn} onChange={e => setBuyIn(Number(e.target.value))} className="w-full bg-poker-light border border-poker-gray/20 text-white text-sm rounded-lg p-2" />
                             </div>
                             <div>
                                 <label className="text-xs text-poker-gray">Rebuy Padrão (R$)</label>
-                                <input type="number" value={rebuy} onChange={e => setRebuy(Number(e.target.value))} className="w-28 bg-poker-light border border-poker-gray/20 text-white text-sm rounded-lg p-2" />
+                                <input type="number" value={rebuy} onChange={e => setRebuy(Number(e.target.value))} className="w-full bg-poker-light border border-poker-gray/20 text-white text-sm rounded-lg p-2" />
+                            </div>
+                             <div className="sm:col-span-2">
+                                <label className="text-xs text-poker-gray">Chave PIX do Clube</label>
+                                <input type="text" value={clubPixKey} placeholder="E-mail, CPF/CNPJ, Telefone, etc." onChange={e => setClubPixKey(e.target.value)} className="w-full bg-poker-light border border-poker-gray/20 text-white text-sm rounded-lg p-2" />
                             </div>
                         </div>
                         <button onClick={handleSaveDefaults} className="px-4 py-2 text-sm font-semibold text-white bg-poker-green hover:bg-poker-green/80 rounded-md">

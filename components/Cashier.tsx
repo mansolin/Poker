@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { Session, Player } from '../types';
 import PlayerAvatar from './PlayerAvatar';
+import CopyIcon from './icons/CopyIcon';
 
 interface CashierProps {
   isUserAdmin: boolean;
@@ -8,9 +9,11 @@ interface CashierProps {
   players: Player[];
   onSettleBalance: (playerId: string) => void;
   onViewProfile: (playerId: string) => void;
+  clubPixKey?: string;
+  onShowToast: (message: string, type?: 'success' | 'error') => void;
 }
 
-const Cashier: React.FC<CashierProps> = ({ isUserAdmin, sessions, players, onSettleBalance, onViewProfile }) => {
+const Cashier: React.FC<CashierProps> = ({ isUserAdmin, sessions, players, onSettleBalance, onViewProfile, clubPixKey, onShowToast }) => {
 
   const playerBalances = useMemo(() => {
     const balancesAndDetails = new Map<string, { balance: number; unpaidSessions: { name: string; amount: number }[] }>();
@@ -60,19 +63,44 @@ const Cashier: React.FC<CashierProps> = ({ isUserAdmin, sessions, players, onSet
     return { totalToReceive: Math.abs(toReceive), totalToPayOut: toPayOut };
   }, [playerBalances]);
 
+  const handleCopyPix = () => {
+    if (clubPixKey) {
+        navigator.clipboard.writeText(clubPixKey)
+            .then(() => {
+                onShowToast('Chave PIX copiada para a área de transferência!', 'success');
+            })
+            .catch(err => {
+                console.error('Failed to copy PIX key: ', err);
+                onShowToast('Erro ao copiar a chave PIX.', 'error');
+            });
+    }
+  };
+
   return (
     <div className="bg-poker-light p-4 md:p-6 rounded-lg shadow-xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h2 className="text-xl md:text-2xl font-bold text-white">Caixa do Clube</h2>
-        <div className="flex items-center space-x-2 md:space-x-4">
-            <div className="bg-poker-dark p-3 rounded-lg text-center">
-                <h3 className="text-xs md:text-sm font-semibold text-poker-gray uppercase">Total a Receber</h3>
-                <p className="text-xl md:text-2xl font-bold text-red-400">R$ {totalToReceive.toLocaleString('pt-BR')}</p>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4 w-full sm:w-auto">
+            <div className="flex items-center space-x-2 md:space-x-4 flex-grow">
+                <div className="bg-poker-dark p-3 rounded-lg text-center w-1/2">
+                    <h3 className="text-xs md:text-sm font-semibold text-poker-gray uppercase">Total a Receber</h3>
+                    <p className="text-xl md:text-2xl font-bold text-red-400">R$ {totalToReceive.toLocaleString('pt-BR')}</p>
+                </div>
+                <div className="bg-poker-dark p-3 rounded-lg text-center w-1/2">
+                    <h3 className="text-xs md:text-sm font-semibold text-poker-gray uppercase">Total a Pagar</h3>
+                    <p className="text-xl md:text-2xl font-bold text-green-400">R$ {totalToPayOut.toLocaleString('pt-BR')}</p>
+                </div>
             </div>
-            <div className="bg-poker-dark p-3 rounded-lg text-center">
-                <h3 className="text-xs md:text-sm font-semibold text-poker-gray uppercase">Total a Pagar</h3>
-                <p className="text-xl md:text-2xl font-bold text-green-400">R$ {totalToPayOut.toLocaleString('pt-BR')}</p>
-            </div>
+            {clubPixKey && (
+                <button 
+                    onClick={handleCopyPix}
+                    className="flex items-center justify-center w-full sm:w-auto px-4 py-3 text-sm font-semibold rounded-md bg-poker-gold text-poker-dark shadow-md hover:bg-poker-gold/80 transition-colors"
+                    title={`PIX: ${clubPixKey}`}
+                >
+                    <span className="h-5 w-5 mr-2"><CopyIcon /></span>
+                    Copiar PIX do Clube
+                </button>
+            )}
         </div>
       </div>
       <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-2">

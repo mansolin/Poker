@@ -51,6 +51,7 @@ export interface ToastState {
 export interface GameDefaults {
   buyIn: number;
   rebuy: number;
+  clubPixKey?: string;
 }
 
 export interface Notification {

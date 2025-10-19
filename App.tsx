@@ -37,7 +37,7 @@ const App: React.FC = () => {
     const [liveGame, setLiveGame] = useState<Session | null>(null);
     const [appUsers, setAppUsers] = useState<AppUser[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [gameDefaults, setGameDefaults] = useState<GameDefaults>({ buyIn: 50, rebuy: 50 });
+    const [gameDefaults, setGameDefaults] = useState<GameDefaults>({ buyIn: 50, rebuy: 50, clubPixKey: '' });
 
     // UI state
     const [activeView, setActiveView] = useState<View>(View.Ranking);
@@ -457,7 +457,7 @@ const App: React.FC = () => {
         if (window.confirm('Excluir este usuário também o removerá da autenticação do Firebase. Esta ação é irreversível. Continuar?')) {
             try {
                 await deleteDoc(doc(db, 'users', uid));
-                showToast('Usuário excluído do banco de dados. Remova-o da Autenticação do Firebase manualmente.');
+                showToast('Usuário excluído do banco de dados. Remova-o da Autênticação do Firebase manualmente.');
             } catch (error) {
                 console.error(error);
                 showToast('Erro ao excluir usuário.', 'error');
@@ -491,7 +491,7 @@ const App: React.FC = () => {
             case View.Ranking:
                 return <Ranking sessionHistory={sessionHistory} onViewProfile={handleViewProfile} onViewSession={handleViewSession} />;
             case View.Cashier:
-                return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleBalance={handleSettleBalance} onViewProfile={handleViewProfile} />;
+                return <Cashier isUserAdmin={isUserAdmin} sessions={sessionHistory} players={players} onSettleBalance={handleSettleBalance} onViewProfile={handleViewProfile} clubPixKey={gameDefaults.clubPixKey} onShowToast={showToast} />;
             case View.Settings:
                  return isUserAuthenticated && isUserAdmin ? <Settings isUserOwner={isUserOwner} appUsers={appUsers} onUpdateUserRole={handleUpdateUserRole} onSaveDefaults={handleSaveDefaults} gameDefaults={gameDefaults} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} /> : null;
             default:
