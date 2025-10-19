@@ -88,8 +88,12 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
         <header className="p-4 border-b border-poker-dark flex justify-between items-center flex-shrink-0">
             <div className="flex items-center gap-2">
                 <h3 className="text-xl font-bold text-white">Detalhes do Jogo:</h3>
-                 {isUserAdmin ? (
-                    <input type="text" value={editedSession.name} disabled={!isEditing} onChange={handleGameNameChange} placeholder="DD/MM/AA" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg p-2 w-32 disabled:bg-transparent disabled:border-transparent" />
+                 {isEditing && isUserAdmin ? (
+                    <input type="text" value={editedSession.name} autoFocus onFocus={handleFocus} onChange={handleGameNameChange} placeholder="DD/MM/AA" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg p-2 w-32" />
+                 ) : isUserAdmin ? (
+                    <button onClick={() => setIsEditing(true)} className="text-xl font-bold text-poker-gold hover:opacity-80 transition-opacity" title="Editar data do jogo">
+                      {editedSession.name}
+                    </button>
                  ) : (
                     <span className="text-xl font-bold text-poker-gold">{editedSession.name}</span>
                  )}
@@ -98,11 +102,6 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 <button onClick={() => setIsGraphModalOpen(true)} className="flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
                     <span className="h-5 w-5 mr-2"><BarChartIcon/></span>Gráfico
                 </button>
-                {isUserAdmin && !isEditing && (
-                    <button onClick={() => setIsEditing(true)} className="flex items-center px-3 py-2 text-sm font-semibold text-white bg-poker-gold hover:bg-poker-gold/80 rounded-lg">
-                        <span className="h-5 w-5 mr-2"><EditIcon/></span>Editar Jogo
-                    </button>
-                )}
                 <button onClick={onClose} className="text-poker-gray hover:text-white text-3xl leading-none">&times;</button>
             </div>
         </header>
@@ -148,7 +147,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                                     <input 
                                         type="checkbox"
                                         checked={!!player.paid}
-                                        disabled={!isEditing || profit >= 0}
+                                        disabled={!isEditing}
                                         onChange={(e) => handlePlayerChange(player.id, 'paid', e.target.checked)}
                                         className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded disabled:opacity-50"
                                     />

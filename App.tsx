@@ -115,8 +115,22 @@ const App: React.FC = () => {
 
                 const sessionsQuery = query(collection(db, 'sessions'), orderBy('date', 'desc'));
                 listeners.push(onSnapshot(sessionsQuery, snapshot => {
-                    const sessionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
-                    setSessionHistory(sessionsData);
+                    const sessionsData = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        // Data integrity check: handle objects that are not Timestamps
+                        if (data.date && typeof data.date === 'object' && 'seconds' in data.date && !(data.date instanceof Timestamp)) {
+                            data.date = new Timestamp(data.date.seconds, data.date.nanoseconds);
+                        }
+                        return { ...data, id: doc.id } as Session;
+                    });
+            
+                    // Sort client-side with a safeguard
+                    const sortedSessions = sessionsData.sort((a, b) => {
+                        const timeA = a.date?.toMillis ? a.date.toMillis() : 0;
+                        const timeB = b.date?.toMillis ? b.date.toMillis() : 0;
+                        return timeB - timeA;
+                    });
+                    setSessionHistory(sortedSessions);
                 }));
 
                 const liveGameQuery = query(collection(db, 'live-game'));
@@ -317,13 +331,15 @@ const App: React.FC = () => {
         if (!liveGame) return;
         if (window.confirm('Tem certeza que deseja encerrar e salvar o jogo no histórico?')) {
             try {
-                // Mark debts as paid or not
                 const finalPlayers = liveGame.players.map(p => ({
                     ...p,
-                    paid: false // All players start as not paid
+                    paid: false
                 }));
 
-                await addDoc(collection(db, 'sessions'), { ...liveGame, players: finalPlayers, date: Timestamp.now() });
+                // Destructure to remove the 'id' field from the liveGame object before saving to history.
+                const { id, ...gameDataToSave } = liveGame;
+
+                await addDoc(collection(db, 'sessions'), { ...gameDataToSave, players: finalPlayers, date: Timestamp.now() });
                 await deleteDoc(doc(db, 'live-game', liveGame.id));
                 showToast('Jogo salvo no histórico!');
             } catch (error) {
@@ -383,15 +399,35 @@ const App: React.FC = () => {
     
     const handleEditHistoricGame = useCallback(async (session: Session) => {
         try {
-            const sessionRef = doc(db, 'sessions', session.id);
-            const parts = session.name.split('/');
-            const date = new Date(parseInt(`20${parts[2]}`, 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+            const { id, ...sessionData } = session;
+            const sessionRef = doc(db, 'sessions', id);
+            
+            const parts = sessionData.name.split('/');
+            
+            if (parts.length !== 3) {
+                showToast('O nome do jogo deve estar no formato DD/MM/AA.', 'error');
+                return;
+            }
+    
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(`20${parts[2]}`, 10);
+    
+            if (isNaN(day) || isNaN(month) || isNaN(year) || day < 1 || day > 31 || month < 0 || month > 11) {
+                showToast('Data inválida no nome do jogo.', 'error');
+                return;
+            }
+            
+            const date = new Date(Date.UTC(year, month, day, 12, 0, 0));
             const newTimestamp = Timestamp.fromDate(date);
-
-            await updateDoc(sessionRef, { ...session, date: newTimestamp });
+    
+            sessionData.date = newTimestamp;
+    
+            // FIX: Pass the object with the Timestamp instance directly to avoid data corruption.
+            await updateDoc(sessionRef, sessionData);
             showToast('Jogo histórico atualizado com sucesso!');
         } catch (error) {
-            console.error(error);
+            console.error("Erro ao atualizar jogo histórico:", error);
             showToast('Erro ao atualizar o jogo.', 'error');
         }
     }, []);
