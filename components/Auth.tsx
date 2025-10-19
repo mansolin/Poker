@@ -21,11 +21,14 @@ import SpinnerIcon from './icons/SpinnerIcon';
 
 interface AuthProps {
     onEnterAsVisitor: () => void;
+    isVisitorLoggingIn: boolean;
+    authError: string;
+    onSetAuthError: (error: string) => void;
 }
 
 type View = 'login' | 'register' | 'forgotPassword' | 'registerSuccess';
 
-const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
+const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor, isVisitorLoggingIn, authError, onSetAuthError }) => {
     const [view, setView] = useState<View>('login');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -33,11 +36,10 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
     const [rememberMe, setRememberMe] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const resetState = () => {
-        setError('');
+        onSetAuthError('');
         setMessage('');
         setShowPassword(false);
     };
@@ -54,13 +56,13 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
                 case 'auth/user-not-found':
                 case 'auth/wrong-password':
                 case 'auth/invalid-credential':
-                    setError('E-mail ou senha incorretos.');
+                    onSetAuthError('E-mail ou senha incorretos.');
                     break;
                 case 'auth/too-many-requests':
-                    setError('Acesso temporariamente bloqueado. Tente novamente mais tarde.');
+                    onSetAuthError('Acesso temporariamente bloqueado. Tente novamente mais tarde.');
                     break;
                 default:
-                    setError('Ocorreu um erro. Tente novamente.');
+                    onSetAuthError('Ocorreu um erro. Tente novamente.');
             }
         } finally {
             setIsLoading(false);
@@ -70,7 +72,7 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         if (password.length < 6) {
-            setError('A senha deve ter no mínimo 6 caracteres.');
+            onSetAuthError('A senha deve ter no mínimo 6 caracteres.');
             return;
         }
         resetState();
@@ -88,11 +90,11 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
             setView('registerSuccess');
         } catch (err: any) {
              if (err.code === 'auth/email-already-in-use') {
-                setError('Este e-mail já está cadastrado.');
+                onSetAuthError('Este e-mail já está cadastrado.');
             } else if (err.code === 'auth/invalid-email') {
-                setError('O formato do e-mail é inválido.');
+                onSetAuthError('O formato do e-mail é inválido.');
             } else {
-                setError('Ocorreu um erro ao registrar. Tente novamente.');
+                onSetAuthError('Ocorreu um erro ao registrar. Tente novamente.');
             }
         } finally {
             setIsLoading(false);
@@ -104,7 +106,7 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
         try {
             await signInWithPopup(auth, googleProvider);
         } catch (err: any) {
-            setError('Falha ao autenticar com o Google. Tente novamente.');
+            onSetAuthError('Falha ao autenticar com o Google. Tente novamente.');
         }
     };
     
@@ -116,7 +118,7 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
             await sendPasswordResetEmail(auth, email);
             setMessage('E-mail de redefinição enviado! Verifique sua caixa de entrada.');
         } catch (err: any) {
-            setError('E-mail não encontrado em nossa base de dados.');
+            onSetAuthError('E-mail não encontrado em nossa base de dados.');
         } finally {
             setIsLoading(false);
         }
@@ -224,14 +226,21 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor }) => {
                     
                     {renderContent()}
 
-                    {error && <p className="text-sm text-red-500 text-center mt-4">{error}</p>}
+                    {authError && <p className="text-sm text-red-500 text-center mt-4">{authError}</p>}
                     {message && <p className="text-sm text-green-400 text-center mt-4">{message}</p>}
                     
                     {view === 'login' && (
                         <>
                             <div className="relative flex py-5 items-center"><div className="flex-grow border-t border-poker-gray/20"></div><span className="flex-shrink mx-4 text-poker-gray text-xs">OU</span><div className="flex-grow border-t border-poker-gray/20"></div></div>
                             <button type="button" onClick={handleGoogleLogin} className="w-full flex justify-center items-center text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-lg text-sm px-5 py-3 text-center mb-4"><GoogleIcon /> <span className="ml-2">Entrar com Google</span></button>
-                            <button type="button" onClick={onEnterAsVisitor} className="w-full text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 font-medium rounded-lg text-sm px-5 py-3 text-center">Entrar como Visitante</button>
+                            <button 
+                                type="button" 
+                                onClick={onEnterAsVisitor} 
+                                disabled={isLoading || isVisitorLoggingIn}
+                                className="w-full h-12 flex justify-center items-center text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 font-medium rounded-lg text-sm px-5 py-3 text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isVisitorLoggingIn ? <SpinnerIcon /> : 'Entrar como Visitante'}
+                            </button>
                         </>
                     )}
                 </div>

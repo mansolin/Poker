@@ -45,6 +45,8 @@ const App: React.FC = () => {
     const [toast, setToast] = useState<ToastState>({ message: '', type: 'success', visible: false });
     const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
     const [initialSessionId, setInitialSessionId] = useState<string | null>(null);
+    const [isVisitorLoggingIn, setIsVisitorLoggingIn] = useState(false);
+    const [authError, setAuthError] = useState('');
 
     const isLoading = user === undefined;
     const userRole: UserRole = user?.role || 'visitor';
@@ -175,14 +177,20 @@ const App: React.FC = () => {
     }, []);
 
     const handleEnterAsVisitor = async () => {
+        setIsVisitorLoggingIn(true);
+        setAuthError('');
         try {
-            // Use session persistence for visitors, so they are logged out when the session ends.
             await setPersistence(auth, browserSessionPersistence);
             await signInAnonymously(auth);
-            // onAuthStateChanged will now handle setting the user state.
-        } catch (error) {
+        } catch (error: any) {
             console.error('Anonymous sign-in failed:', error);
-            showToast('Não foi possível entrar como visitante.', 'error');
+            if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/admin-restricted-operation') {
+                setAuthError('Erro: Login anônimo desativado. Habilite-o no Console do Firebase.');
+            } else {
+                setAuthError('Não foi possível entrar como visitante.');
+            }
+        } finally {
+            setIsVisitorLoggingIn(false);
         }
     };
 
@@ -503,7 +511,7 @@ const App: React.FC = () => {
     }
 
     if (!user) {
-        return <Auth onEnterAsVisitor={handleEnterAsVisitor} />;
+        return <Auth onEnterAsVisitor={handleEnterAsVisitor} isVisitorLoggingIn={isVisitorLoggingIn} authError={authError} onSetAuthError={setAuthError} />;
     }
     
     if (user.role === 'pending') {
