@@ -34,6 +34,7 @@ const App: React.FC = () => {
     // Data state
     const [players, setPlayers] = useState<Player[]>([]);
     const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
+    const [dinnerHistory, setDinnerHistory] = useState<DinnerSession[]>([]);
     const [liveGame, setLiveGame] = useState<Session | null>(null);
     const [liveDinner, setLiveDinner] = useState<DinnerSession | null>(null);
     const [appUsers, setAppUsers] = useState<AppUser[]>([]);
@@ -133,6 +134,7 @@ const App: React.FC = () => {
             // Clear data when user logs out
             setPlayers([]);
             setSessionHistory([]);
+            setDinnerHistory([]);
             setLiveGame(null);
             setLiveDinner(null);
             setAppUsers([]);
@@ -200,6 +202,19 @@ const App: React.FC = () => {
             }
         }, handleError('jantar'));
 
+        // Dinner History listener
+        const qDinnerHistory = query(collection(db, 'dinner_sessions'), orderBy('date', 'desc'));
+        const unsubscribeDinnerHistory = onSnapshot(qDinnerHistory, snapshot => {
+            setDinnerHistory(snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    date: normalizeTimestamp(data.date)
+                } as DinnerSession;
+            }));
+        }, handleError('histórico de jantares'));
+
         // Users listener (for admins)
         let unsubscribeUsers = () => {};
         if (isUserAdmin) {
@@ -241,6 +256,7 @@ const App: React.FC = () => {
             unsubscribeSessions();
             unsubscribeLiveGame();
             unsubscribeLiveDinner();
+            unsubscribeDinnerHistory();
             unsubscribeUsers();
             unsubscribeNotifications();
             unsubscribeGameDefaults();
@@ -267,7 +283,14 @@ const App: React.FC = () => {
 
     // Game Handlers
     const handleStartGame = useCallback(async (playerIds: string[]) => {
-        if (!isUserAdmin) return;
+        if (!isUserAdmin) {
+            showToast('Apenas administradores podem iniciar um jogo.', 'error');
+            return;
+        }
+        if (!user) {
+            showToast('Erro: Usuário não encontrado para iniciar o jogo.', 'error');
+            return;
+        }
         const selectedPlayers = players.filter(p => playerIds.includes(p.id));
         const gamePlayers: GamePlayer[] = selectedPlayers.map(p => ({
             ...p,
@@ -285,6 +308,7 @@ const App: React.FC = () => {
             name: gameName,
             date: Timestamp.fromDate(date),
             players: gamePlayers,
+            createdBy: user.uid,
         };
 
         try {
@@ -295,7 +319,7 @@ const App: React.FC = () => {
             console.error("Error starting game:", error);
             showToast('Erro ao iniciar o jogo.', 'error');
         }
-    }, [isUserAdmin, players, gameDefaults, setActiveView, showToast]);
+    }, [isUserAdmin, players, gameDefaults, setActiveView, showToast, user]);
 
     const handleUpdateLiveGame = useCallback(async (updatedPlayers: GamePlayer[], gameName?: string) => {
         if (!isUserAdmin || !liveGame) return;
@@ -512,7 +536,10 @@ const App: React.FC = () => {
 
     // Dinner Handlers
     const handleStartDinner = useCallback(async (participantIds: string[]) => {
-        if (!isUserOwner) return; // Only owners can start a dinner
+        if (!isUserAdmin || !user) {
+            showToast('Apenas administradores podem iniciar um jantar.', 'error');
+            return;
+        }
         const participantsData = players.filter(p => participantIds.includes(p.id));
         const dinnerParticipants: DinnerParticipant[] = participantsData.map(p => ({
             id: p.id,
@@ -532,6 +559,7 @@ const App: React.FC = () => {
             totalFoodCost: 0,
             totalDrinkCost: 0,
             isFinalized: false,
+            createdBy: user.uid,
         };
 
         try {
@@ -539,9 +567,9 @@ const App: React.FC = () => {
             showToast('Jantar iniciado!', 'success');
         } catch (error) {
             console.error("Error starting dinner:", error);
-            showToast('Erro ao iniciar o jantar. Apenas Donos podem ter essa permissão.', 'error');
+            showToast('Erro ao iniciar o jantar. Verifique suas permissões.', 'error');
         }
-    }, [isUserOwner, players, showToast]);
+    }, [isUserAdmin, players, showToast, user]);
 
     const handleUpdateDinner = useCallback(async (updatedDinnerData: Partial<DinnerSession>) => {
         if (!isUserAdmin || !liveDinner) return;
@@ -555,12 +583,35 @@ const App: React.FC = () => {
 
     const handleFinalizeDinner = useCallback(async () => {
         if (!isUserAdmin || !liveDinner) return;
-        if (window.confirm("Finalizar e salvar o jantar? (Funcionalidade de histórico em desenvolvimento)")) {
+        if (window.confirm("Finalizar e salvar o jantar? Esta ação moverá os dados para o histórico.")) {
+            // Recalculate amounts to ensure they are correct before saving
+            const eatingCount = liveDinner.participants.filter(p => p.isEating).length;
+            const drinkingCount = liveDinner.participants.filter(p => p.isDrinking).length;
+
+            const foodPerPerson = eatingCount > 0 ? liveDinner.totalFoodCost / eatingCount : 0;
+            const drinkPerPerson = drinkingCount > 0 ? liveDinner.totalDrinkCost / drinkingCount : 0;
+            
+            const finalParticipants = liveDinner.participants.map(p => {
+                let amountOwed = 0;
+                if (p.isEating) amountOwed += foodPerPerson;
+                if (p.isDrinking) amountOwed += drinkPerPerson;
+                return {...p, amountOwed: Math.round(amountOwed * 100) / 100 };
+            });
+
+            const dinnerToSave: Omit<DinnerSession, 'id'> = {
+                ...liveDinner,
+                participants: finalParticipants,
+                isFinalized: true,
+                date: Timestamp.now(),
+            };
+            
             try {
+                await addDoc(collection(db, 'dinner_sessions'), dinnerToSave);
                 await deleteDoc(doc(db, 'live_dinner', 'current_dinner'));
-                showToast('Jantar finalizado.');
+                showToast('Jantar salvo no histórico com sucesso!');
             } catch (error) {
-                showToast('Erro ao finalizar o jantar.', 'error');
+                console.error("Error finalizing dinner:", error);
+                showToast('Erro ao finalizar o jantar. Verifique as regras de segurança.', 'error');
             }
         }
     }, [isUserAdmin, liveDinner, showToast]);

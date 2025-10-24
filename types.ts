@@ -17,10 +17,11 @@ export interface GamePlayer extends Player {
 }
 
 export interface Session {
-  id: string;
+  id:string;
   name: string;
   date: Timestamp;
   players: GamePlayer[];
+  createdBy?: string;
 }
 
 export interface DinnerParticipant {
@@ -39,6 +40,7 @@ export interface DinnerSession {
   totalFoodCost: number;
   totalDrinkCost: number;
   isFinalized: boolean;
+  createdBy?: string;
 }
 
 export type UserRole = 'owner' | 'admin' | 'pending' | 'visitor';
