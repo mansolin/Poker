@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { 
@@ -247,7 +248,12 @@ const App: React.FC = () => {
         // Game Defaults listener
         const unsubscribeGameDefaults = onSnapshot(doc(db, 'config', 'game_defaults'), doc => {
             if (doc.exists()) {
-                setGameDefaults(doc.data() as GameDefaults);
+                const loadedDefaults = doc.data() as Partial<GameDefaults>;
+                // Merge with previous state to ensure no fields become undefined
+                setGameDefaults(prevDefaults => ({
+                    ...prevDefaults,
+                    ...loadedDefaults,
+                }));
             }
         }, handleError('configurações'));
 
@@ -289,6 +295,10 @@ const App: React.FC = () => {
         }
         if (!user) {
             showToast('Erro: Usuário não encontrado para iniciar o jogo.', 'error');
+            return;
+        }
+        if (playerIds.length < 2) {
+            showToast('Selecione pelo menos 2 jogadores para iniciar um jogo.', 'error');
             return;
         }
         const selectedPlayers = players.filter(p => playerIds.includes(p.id));

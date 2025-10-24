@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Player, DinnerSession, DinnerParticipant } from '../types';
 import PlayerAvatar from './PlayerAvatar';
@@ -97,10 +98,10 @@ const Dinner: React.FC<DinnerProps> = ({ isUserAdmin, isUserOwner, allPlayers, l
                 <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
                     <h2 className="text-2xl font-bold text-white mb-4">Nenhum Jantar Ativo</h2>
                     <p className="text-poker-gray mb-6">Inicie um controle de despesas para o jantar.</p>
-                    {isUserOwner && <button onClick={() => setIsSelectionModalOpen(true)} className="px-6 py-3 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm">Iniciar Jantar</button>}
+                    {isUserAdmin && <button onClick={() => setIsSelectionModalOpen(true)} className="px-6 py-3 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm">Iniciar Jantar</button>}
                 </div>
 
-                {isSelectionModalOpen && isUserOwner && (
+                {isSelectionModalOpen && isUserAdmin && (
                      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
                         <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
                             <header className="p-4 border-b border-poker-dark flex justify-between items-center">
