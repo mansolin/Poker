@@ -4,6 +4,7 @@ import PlusIcon from './icons/PlusIcon';
 import PlayerAvatar from './PlayerAvatar';
 import BlindsTimer from './BlindsTimer';
 import ClockIcon from './icons/ClockIcon';
+import EditIcon from './icons/EditIcon';
 
 interface LiveGameProps {
   isUserAdmin: boolean;
@@ -85,14 +86,13 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
           ) : (
             <div className="flex items-center space-x-3">
                 <h2 className="text-xl sm:text-2xl font-bold text-white">
-                  Jogo: {isUserAdmin ? (
-                      <button onClick={() => setIsEditingName(true)} className="text-poker-gold hover:opacity-80 transition-opacity font-bold" title="Editar nome do jogo">
-                          {gameName}
-                      </button>
-                  ) : (
-                      <span className="text-poker-gold">{gameName}</span>
-                  )}
+                  Jogo: <span className="text-poker-gold">{gameName}</span>
                 </h2>
+                {isUserAdmin && (
+                    <button onClick={() => setIsEditingName(true)} className="text-poker-gray hover:text-white" title="Editar nome do jogo">
+                        <EditIcon />
+                    </button>
+                )}
                 <div className="relative inline-block px-3 py-1 text-xs font-semibold leading-tight text-white rounded-full bg-poker-green overflow-hidden">
                   <div 
                     className="absolute inset-0 bg-gradient-to-r from-poker-green via-green-400 to-poker-green animate-shimmer"

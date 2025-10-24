@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
-import PokerClubLogo from './PokerClubLogo';
+import SpadeTreeLogo from './SpadeTreeLogo';
 import EyeIcon from './icons/EyeIcon';
 import EyeSlashIcon from './icons/EyeSlashIcon';
 import GoogleIcon from './icons/GoogleIcon';
@@ -183,7 +183,7 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor, isVisitorLoggingIn, authE
          <div className="text-center">
             <h1 className="text-2xl font-bold text-white mb-4">Registro Concluído!</h1>
             <p className="text-poker-gray mb-6">Sua conta foi criada e está pendente de aprovação. Você será notificado quando sua conta for ativada.</p>
-            <button onClick={() => setView('login')} className="w-full text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 font-medium rounded-lg text-sm px-5 py-3 text-center">
+            <button onClick={() => { setView('login'); resetState(); }} className="w-full text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 font-medium rounded-lg text-sm px-5 py-3 text-center">
                 Voltar para o Login
             </button>
         </div>
@@ -199,50 +199,66 @@ const Auth: React.FC<AuthProps> = ({ onEnterAsVisitor, isVisitorLoggingIn, authE
         }
     }
 
-    const getTitle = () => {
+    const getMemberTitle = () => {
         switch(view) {
-            case 'login': return { title: 'Acesso Restrito', subtitle: 'Área para administradores e membros.' };
-            case 'register': return { title: 'Criar Conta', subtitle: 'Solicite seu acesso ao clube.' };
-            case 'forgotPassword': return { title: 'Redefinir Senha', subtitle: 'Insira seu e-mail para o link de redefinição.' };
-            default: return { title: '', subtitle: '' };
+            case 'login': return 'Acesso para Membros';
+            case 'register': return 'Criar Conta de Membro';
+            case 'forgotPassword': return 'Redefinir Senha';
+            default: return '';
         }
     }
-    
-    const { title, subtitle } = getTitle();
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-poker-dark p-4">
             <div className="w-full max-w-md">
-                <div className="flex justify-center mb-6">
-                    <PokerClubLogo />
+                <div className="flex justify-center mb-8">
+                    <SpadeTreeLogo className="h-32 w-32" />
                 </div>
                 <div className="bg-poker-light p-8 rounded-lg shadow-2xl">
-                    {view !== 'registerSuccess' && (
-                        <div className="text-center mb-6">
-                            <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
-                            <p className="text-poker-gray">{subtitle}</p>
-                        </div>
-                    )}
                     
-                    {renderContent()}
-
-                    {authError && <p className="text-sm text-red-500 text-center mt-4">{authError}</p>}
-                    {message && <p className="text-sm text-green-400 text-center mt-4">{message}</p>}
-                    
-                    {view === 'login' && (
+                    {view !== 'registerSuccess' ? (
                         <>
-                            <div className="relative flex py-5 items-center"><div className="flex-grow border-t border-poker-gray/20"></div><span className="flex-shrink mx-4 text-poker-gray text-xs">OU</span><div className="flex-grow border-t border-poker-gray/20"></div></div>
-                            <button type="button" onClick={handleGoogleLogin} className="w-full flex justify-center items-center text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-lg text-sm px-5 py-3 text-center mb-4"><GoogleIcon /> <span className="ml-2">Entrar com Google</span></button>
-                            <button 
-                                type="button" 
-                                onClick={onEnterAsVisitor} 
-                                disabled={isLoading || isVisitorLoggingIn}
-                                className="w-full h-12 flex justify-center items-center text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 font-medium rounded-lg text-sm px-5 py-3 text-center disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isVisitorLoggingIn ? <SpinnerIcon /> : 'Entrar como Visitante'}
-                            </button>
+                            {/* Visitor Section */}
+                            <div className="text-center">
+                                <h1 className="text-2xl font-bold text-white mb-2">Bem-vindo ao Poker The Club</h1>
+                                <p className="text-poker-gray mb-6">Acompanhe jogos ao vivo, rankings e histórico.</p>
+                                <button 
+                                    type="button" 
+                                    onClick={onEnterAsVisitor} 
+                                    disabled={isLoading || isVisitorLoggingIn}
+                                    className="w-full h-12 flex justify-center items-center text-poker-dark bg-poker-gold hover:bg-poker-gold/80 font-bold rounded-lg text-sm px-5 py-3 text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isVisitorLoggingIn ? <SpinnerIcon /> : 'Entrar como Visitante'}
+                                </button>
+                            </div>
+
+                            {/* Separator */}
+                            <div className="relative flex py-5 items-center">
+                                <div className="flex-grow border-t border-poker-gray/20"></div>
+                                <span className="flex-shrink mx-4 text-poker-gray text-xs">OU</span>
+                                <div className="flex-grow border-t border-poker-gray/20"></div>
+                            </div>
+                            
+                            {/* Member Section */}
+                            <div className="text-center mb-6">
+                                <h2 className="text-xl font-semibold text-white">{getMemberTitle()}</h2>
+                            </div>
+                            
+                            {renderContent()}
+
+                            {authError && <p className="text-sm text-red-500 text-center mt-4">{authError}</p>}
+                            {message && <p className="text-sm text-green-400 text-center mt-4">{message}</p>}
+
+                            {view === 'login' && (
+                                <button type="button" onClick={handleGoogleLogin} className="w-full flex justify-center items-center mt-4 text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-lg text-sm px-5 py-3 text-center">
+                                    <GoogleIcon /> <span className="ml-2">Entrar com Google</span>
+                                </button>
+                            )}
                         </>
+                    ) : (
+                        renderRegisterSuccessView()
                     )}
+
                 </div>
                  <div className="text-sm text-center font-medium text-poker-gray mt-6">
                     {view === 'login' && <>Não tem uma conta? <button onClick={() => { setView('register'); resetState(); }} className="text-poker-gold hover:underline">Registre-se</button></>}

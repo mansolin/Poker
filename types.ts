@@ -23,6 +23,24 @@ export interface Session {
   players: GamePlayer[];
 }
 
+export interface DinnerParticipant {
+  id: string;
+  name: string;
+  isEating: boolean;
+  isDrinking: boolean;
+  amountOwed: number;
+}
+
+export interface DinnerSession {
+  id: string;
+  name: string;
+  date: Timestamp;
+  participants: DinnerParticipant[];
+  totalFoodCost: number;
+  totalDrinkCost: number;
+  isFinalized: boolean;
+}
+
 export type UserRole = 'owner' | 'admin' | 'pending' | 'visitor';
 
 export interface AppUser {
@@ -40,6 +58,7 @@ export enum View {
   PlayerProfile = 'Perfil do Jogador',
   Cashier = 'Caixa',
   Settings = 'Configurações',
+  Expenses = 'Jantar',
 }
 
 export interface ToastState {

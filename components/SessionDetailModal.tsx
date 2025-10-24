@@ -90,15 +90,16 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 <h3 className="text-xl font-bold text-white">Detalhes do Jogo:</h3>
                  {isEditing && isUserAdmin ? (
                     <input type="text" value={editedSession.name} autoFocus onFocus={handleFocus} onChange={handleGameNameChange} placeholder="DD/MM/AA" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg p-2 w-32" />
-                 ) : isUserAdmin ? (
-                    <button onClick={() => setIsEditing(true)} className="text-xl font-bold text-poker-gold hover:opacity-80 transition-opacity" title="Editar data do jogo">
-                      {editedSession.name}
-                    </button>
                  ) : (
                     <span className="text-xl font-bold text-poker-gold">{editedSession.name}</span>
                  )}
             </div>
             <div className="flex items-center gap-2">
+                {isUserAdmin && !isEditing && (
+                    <button onClick={() => setIsEditing(true)} className="flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
+                        <span className="h-5 w-5 mr-2"><EditIcon /></span>Editar
+                    </button>
+                )}
                 <button onClick={() => setIsGraphModalOpen(true)} className="flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
                     <span className="h-5 w-5 mr-2"><BarChartIcon/></span>Gráfico
                 </button>
@@ -110,11 +111,17 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 <table className="min-w-full divide-y divide-poker-dark">
                     <thead className="bg-poker-dark">
                         <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Jogador</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Investido (R$)</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Fichas Finais</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Resultado (R$)</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Pago</th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Jogador</th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">
+                                <span className="sm:hidden">Invest.</span>
+                                <span className="hidden sm:inline">Investido (R$)</span>
+                            </th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Fichas Finais</th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">
+                                <span className="sm:hidden">Resul.</span>
+                                <span className="hidden sm:inline">Resultado (R$)</span>
+                            </th>
+                            <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Pago</th>
                         </tr>
                     </thead>
                     <tbody className="bg-poker-light divide-y divide-poker-dark">
@@ -122,14 +129,17 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                             const profit = player.finalChips - player.totalInvested;
                             return (
                             <tr key={player.id} className="hover:bg-poker-dark/50">
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                    <div className="flex items-center space-x-3">
+                                <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                                    <div className="flex items-center space-x-2 sm:space-x-3">
                                         <PlayerAvatar name={player.name} size="sm" />
-                                        <button onClick={() => onViewProfile(player.id)} className="text-sm font-medium text-white hover:text-poker-gold">{player.name}</button>
+                                        <button onClick={() => onViewProfile(player.id)} className="text-sm font-medium text-white hover:text-poker-gold truncate" title={player.name}>
+                                            <span className="sm:hidden">{player.name.split(' ')[0]}</span>
+                                            <span className="hidden sm:inline">{player.name}</span>
+                                        </button>
                                     </div>
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-poker-gold">R$ {player.totalInvested.toLocaleString('pt-BR')}</td>
-                                <td className="px-4 py-3 whitespace-nowrap">
+                                <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm font-bold text-poker-gold">R$ {player.totalInvested.toLocaleString('pt-BR')}</td>
+                                <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
                                     <input 
                                         type="number" 
                                         min="0"
@@ -137,19 +147,19 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                                         disabled={!isEditing}
                                         onChange={(e) => handlePlayerChange(player.id, 'finalChips', Math.max(0, parseInt(e.target.value, 10) || 0))} 
                                         onFocus={handleFocus}
-                                        className="w-24 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed" 
+                                        className="w-20 sm:w-24 bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg p-2 disabled:bg-poker-dark/50 disabled:cursor-not-allowed" 
                                     />
                                 </td>
-                                <td className={`px-4 py-3 whitespace-nowrap text-sm font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <td className={`px-2 sm:px-4 py-3 whitespace-nowrap text-sm font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     R$ {profit.toLocaleString('pt-BR')}
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap">
+                                <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-center">
                                     <input 
                                         type="checkbox"
                                         checked={!!player.paid}
                                         disabled={!isEditing}
                                         onChange={(e) => handlePlayerChange(player.id, 'paid', e.target.checked)}
-                                        className="w-5 h-5 text-poker-green bg-gray-700 border-gray-600 rounded disabled:opacity-50"
+                                        className="w-5 h-5 text-green-500 bg-gray-700 border-gray-600 rounded focus:ring-2 focus:ring-green-500 disabled:opacity-50"
                                     />
                                 </td>
                             </tr>);

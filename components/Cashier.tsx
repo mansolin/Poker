@@ -63,17 +63,28 @@ const Cashier: React.FC<CashierProps> = ({ isUserAdmin, sessions, players, onSet
     return { totalToReceive: Math.abs(toReceive), totalToPayOut: toPayOut };
   }, [playerBalances]);
 
-  const handleCopyPix = () => {
+  const handleCopyClubPix = () => {
     if (clubPixKey) {
         navigator.clipboard.writeText(clubPixKey)
             .then(() => {
-                onShowToast('Chave PIX copiada para a área de transferência!', 'success');
+                onShowToast('Chave PIX do Clube copiada!', 'success');
             })
             .catch(err => {
                 console.error('Failed to copy PIX key: ', err);
                 onShowToast('Erro ao copiar a chave PIX.', 'error');
             });
     }
+  };
+
+  const handleCopyPlayerPix = (pixKey: string, playerName: string) => {
+    navigator.clipboard.writeText(pixKey)
+        .then(() => {
+            onShowToast(`PIX de ${playerName.split(' ')[0]} copiado!`, 'success');
+        })
+        .catch(err => {
+            console.error('Failed to copy PIX key: ', err);
+            onShowToast('Erro ao copiar a chave PIX.', 'error');
+        });
   };
 
   return (
@@ -93,7 +104,7 @@ const Cashier: React.FC<CashierProps> = ({ isUserAdmin, sessions, players, onSet
             </div>
             {clubPixKey && (
                 <button 
-                    onClick={handleCopyPix}
+                    onClick={handleCopyClubPix}
                     className="flex items-center justify-center w-full sm:w-auto px-4 py-3 text-sm font-semibold rounded-md bg-poker-gold text-poker-dark shadow-md hover:bg-poker-gold/80 transition-colors"
                     title={`PIX: ${clubPixKey}`}
                 >
@@ -110,10 +121,23 @@ const Cashier: React.FC<CashierProps> = ({ isUserAdmin, sessions, players, onSet
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
                     <div className="flex items-center w-full sm:w-auto flex-grow mb-3 sm:mb-0">
                         <PlayerAvatar name={player.name} />
-                        <button onClick={() => onViewProfile(player.id)} className="ml-4 text-left hover:opacity-80">
-                        <p className="text-base font-semibold text-white">{player.name}</p>
-                        <p className="text-xs text-poker-gray">{player.whatsapp}</p>
-                        </button>
+                        <div className="ml-4 flex-grow">
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => onViewProfile(player.id)} className="text-left hover:opacity-80">
+                                    <p className="text-base font-semibold text-white">{player.name}</p>
+                                </button>
+                                {player.pixKey && balance > 0 && (
+                                    <button 
+                                        onClick={() => handleCopyPlayerPix(player.pixKey, player.name)}
+                                        className="px-2 py-0.5 text-xs font-bold rounded-md bg-poker-gold text-poker-dark hover:bg-poker-gold/80 transition-colors"
+                                        title={`Copiar PIX: ${player.pixKey}`}
+                                    >
+                                        PIX
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-xs text-poker-gray">{player.whatsapp}</p>
+                        </div>
                     </div>
                     <div className="flex items-center space-x-4 flex-shrink-0 self-end sm:self-center">
                         <div className="text-right">

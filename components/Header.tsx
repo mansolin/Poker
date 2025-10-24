@@ -1,10 +1,6 @@
 import React from 'react';
 import { View, UserRole } from '../types';
-import PokerChipIcon from './icons/PokerChipIcon';
 import UsersIcon from './icons/UsersIcon';
-import TrophyIcon from './icons/TrophyIcon';
-import HistoryIcon from './icons/HistoryIcon';
-import CashierIcon from './icons/CashierIcon';
 import SpadeTreeLogo from './SpadeTreeLogo';
 import MenuIcon from './icons/MenuIcon';
 import LogoutIcon from './icons/LogoutIcon';
@@ -20,16 +16,17 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setActiveView, onOpenMenu, userRole, onLogout }) => {
   const navItems = [
-    { view: View.LiveGame, icon: <PokerChipIcon /> },
-    { view: View.Ranking, icon: <TrophyIcon /> },
-    { view: View.SessionHistory, icon: <HistoryIcon /> },
-    { view: View.Players, icon: <UsersIcon /> },
-    { view: View.Cashier, icon: <CashierIcon /> },
+    { view: View.LiveGame, icon: '🎬', isEmoji: true },
+    { view: View.Ranking, icon: '🏆', isEmoji: true },
+    { view: View.SessionHistory, icon: '📜', isEmoji: true },
+    { view: View.Players, icon: <UsersIcon />, isEmoji: false },
+    { view: View.Cashier, icon: '💰', isEmoji: true },
+    { view: View.Expenses, icon: '🥩', isEmoji: true },
   ];
 
   const visibleNavItems = navItems.filter(item => {
     if (userRole === 'visitor') {
-      return [View.LiveGame, View.Ranking, View.SessionHistory, View.Cashier].includes(item.view);
+      return [View.LiveGame, View.Ranking, View.SessionHistory, View.Cashier, View.Expenses].includes(item.view);
     }
     return true; // Show all for other roles
   });
@@ -66,7 +63,7 @@ const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setAct
                         title={item.view}
                         disabled={isViewDisabled(item.view)}
                     >
-                        <span className="h-5 w-5">{item.icon}</span>
+                        <span className={item.isEmoji ? 'text-2xl' : 'h-5 w-5'}>{item.icon}</span>
                         <span className="hidden md:inline ml-2">{item.view}</span>
                     </button>
                     </li>
