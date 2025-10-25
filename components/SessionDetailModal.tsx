@@ -132,8 +132,15 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
       alert('O total de fichas distribuídas deve ser igual ao montante total investido.');
       return;
     }
-    onSave(editedSession);
-    setIsEditing(false);
+
+    if (editedSession.players.length === 0) {
+      // If all players have been removed, this is effectively a deletion.
+      // Trigger the existing delete confirmation flow.
+      setIsDeleteConfirmOpen(true);
+    } else {
+      onSave(editedSession);
+      setIsEditing(false);
+    }
   };
   
   const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
