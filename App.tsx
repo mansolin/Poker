@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { 
@@ -515,10 +516,13 @@ const App: React.FC = () => {
         }
 
         try {
+            // This is the "Realistic" approach: only update UI after server confirmation.
             await deleteDoc(doc(db, 'sessions', sessionId));
-            // Manually update the local state to provide immediate feedback,
-            // preventing the "reappearing game" bug.
-            setSessionHistory(prev => prev.filter(s => s.id !== sessionId));
+            
+            // The onSnapshot listener will automatically update the UI.
+            // A manual update is an alternative for faster perceived feedback if needed.
+            // setSessionHistory(prev => prev.filter(s => s.id !== sessionId));
+
             showToast('Jogo excluído do histórico.', 'success');
         } catch (error) {
             console.error("Error deleting session:", error);
@@ -759,6 +763,7 @@ const App: React.FC = () => {
                             isUserAdmin={isUserAdmin} 
                             players={players} 
                             onAddPlayer={handleAddPlayer} 
+                            // FIX: Corrected typo from onUpdatePlayer to handleUpdatePlayer
                             onUpdatePlayer={handleUpdatePlayer}
                             onDeletePlayer={handleDeletePlayer}
                             onStartGame={handleStartGame} 
@@ -803,6 +808,7 @@ const App: React.FC = () => {
                             allPlayers={players}
                             liveDinner={liveDinner}
                             onStartDinner={handleStartDinner}
+                            // FIX: Corrected typo from onUpdateDinner to handleUpdateDinner
                             onUpdateDinner={handleUpdateDinner}
                             onFinalizeDinner={handleFinalizeDinner}
                             onCancelDinner={handleCancelDinner}
