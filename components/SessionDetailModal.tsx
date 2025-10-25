@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Session, Player, GamePlayer } from '../types';
 import PlayerAvatar from './PlayerAvatar';
 import BarChartIcon from './icons/BarChartIcon';
 import SessionGraphModal from './SessionGraphModal';
 import EditIcon from './icons/EditIcon';
+import TrashIcon from './icons/TrashIcon';
 
 
 interface SessionDetailModalProps {
@@ -12,6 +14,7 @@ interface SessionDetailModalProps {
   allPlayers: Player[];
   onClose: () => void;
   onSave: (session: Session) => void;
+  onDelete: (sessionId: string) => void;
   onViewProfile: (playerId: string) => void;
 }
 
@@ -21,6 +24,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   allPlayers,
   onClose,
   onSave,
+  onDelete,
   onViewProfile,
 }) => {
   const [editedSession, setEditedSession] = useState<Session>(session);
@@ -66,6 +70,13 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     onSave(editedSession);
     setIsEditing(false);
   };
+
+  const handleDeleteClick = () => {
+    if (window.confirm("Tem certeza que deseja excluir este jogo do histórico? Esta ação não pode ser desfeita.")) {
+        onDelete(session.id);
+        onClose();
+    }
+  };
   
   const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -103,6 +114,15 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 <button onClick={() => setIsGraphModalOpen(true)} className="flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-poker-dark text-white shadow-md hover:bg-poker-dark/70">
                     <span className="h-5 w-5 mr-2"><BarChartIcon/></span>Gráfico
                 </button>
+                {isUserAdmin && (
+                    <button 
+                        onClick={handleDeleteClick} 
+                        className="flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-red-800/50 text-red-400 hover:bg-red-800 hover:text-white shadow-md transition-colors"
+                        title="Excluir Jogo do Histórico"
+                    >
+                        <span className="h-5 w-5 mr-2"><TrashIcon /></span>Excluir
+                    </button>
+                )}
                 <button onClick={onClose} className="text-poker-gray hover:text-white text-3xl leading-none">&times;</button>
             </div>
         </header>

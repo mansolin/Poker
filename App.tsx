@@ -507,6 +507,20 @@ const App: React.FC = () => {
         }
     }, [isUserAdmin, showToast]);
 
+    const handleDeleteHistoricGame = useCallback(async (sessionId: string) => {
+        if (!isUserAdmin) {
+            showToast('Apenas administradores podem excluir jogos.', 'error');
+            return;
+        }
+        try {
+            await deleteDoc(doc(db, 'sessions', sessionId));
+            showToast('Jogo excluído do histórico.', 'success');
+        } catch (error) {
+            console.error("Error deleting session:", error);
+            showToast('Erro ao excluir o jogo.', 'error');
+        }
+    }, [isUserAdmin, showToast]);
+
     const handleViewProfile = (playerId: string) => {
         setViewingPlayerId(playerId);
         setActiveView(View.PlayerProfile);
@@ -722,6 +736,7 @@ const App: React.FC = () => {
                             sessionHistory={sessionHistory} 
                             players={players} 
                             onEditHistoricGame={handleEditHistoricGame}
+                            onDeleteHistoricGame={handleDeleteHistoricGame}
                             onViewProfile={handleViewProfile}
                             initialSessionId={initialSessionId}
                             onClearInitialSession={() => setInitialSessionId(null)}

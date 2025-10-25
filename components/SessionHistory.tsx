@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Session, Player } from '../types';
 import GameCard from './GameCard';
@@ -10,6 +11,7 @@ interface SessionHistoryProps {
   sessionHistory: Session[];
   players: Player[];
   onEditHistoricGame: (session: Session) => void;
+  onDeleteHistoricGame: (sessionId: string) => void;
   onViewProfile: (playerId: string) => void;
   initialSessionId: string | null;
   onClearInitialSession: () => void;
@@ -20,6 +22,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({
   sessionHistory,
   players,
   onEditHistoricGame,
+  onDeleteHistoricGame,
   onViewProfile,
   initialSessionId,
   onClearInitialSession,
@@ -97,6 +100,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({
           allPlayers={players}
           onClose={handleCloseModal}
           onSave={onEditHistoricGame}
+          onDelete={onDeleteHistoricGame}
           onViewProfile={onViewProfile}
         />
       )}
