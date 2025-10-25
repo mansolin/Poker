@@ -24,12 +24,7 @@ const Header: React.FC<HeaderProps> = ({ isUserAuthenticated, activeView, setAct
     { view: View.Expenses, icon: '🥩', isEmoji: true },
   ];
 
-  const visibleNavItems = navItems.filter(item => {
-    if (userRole === 'visitor') {
-      return [View.LiveGame, View.Ranking, View.SessionHistory, View.Cashier, View.Expenses].includes(item.view);
-    }
-    return true; // Show all for other roles
-  });
+  const visibleNavItems = navItems;
   
   const isViewDisabled = (view: View): boolean => {
     if (!isUserAuthenticated) {
