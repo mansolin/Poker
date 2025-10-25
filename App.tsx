@@ -512,17 +512,30 @@ const App: React.FC = () => {
             showToast(msg, 'error');
             throw new Error(msg);
         }
+
+        // Keep a copy of the current state to revert on failure
+        const originalHistory = sessionHistory;
+        
+        // Optimistically update the UI by removing the item immediately
+        setSessionHistory(prevHistory => prevHistory.filter(s => s.id !== sessionId));
+
         try {
+            // Attempt the actual deletion from Firestore
             await deleteDoc(doc(db, 'sessions', sessionId));
+            
+            // On success, show the toast. The UI is already updated.
             showToast('Jogo excluído do histórico.', 'success');
-            // The onSnapshot listener should automatically update the UI.
         } catch (error) {
+            // If deletion fails, log the error, show a toast, and revert the UI to its original state
             console.error("Error deleting session:", error);
             const msg = 'Erro ao excluir o jogo. Verifique as permissões.';
             showToast(msg, 'error');
-            throw error; // Re-throw to be caught by the modal
+            setSessionHistory(originalHistory);
+            
+            // Re-throw the error so the modal knows the operation failed and can stay open
+            throw error;
         }
-    }, [isUserAdmin, showToast]);
+    }, [isUserAdmin, showToast, sessionHistory]);
 
     const handleViewProfile = (playerId: string) => {
         setViewingPlayerId(playerId);
