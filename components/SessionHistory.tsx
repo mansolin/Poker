@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Session, Player } from '../types';
 import GameCard from './GameCard';
@@ -11,7 +10,7 @@ interface SessionHistoryProps {
   sessionHistory: Session[];
   players: Player[];
   onEditHistoricGame: (session: Session) => void;
-  onDeleteHistoricGame: (sessionId: string) => void;
+  onDeleteHistoricGame: (sessionId: string) => Promise<void>;
   onViewProfile: (playerId: string) => void;
   initialSessionId: string | null;
   onClearInitialSession: () => void;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Session, Player, GamePlayer } from '../types';
 import PlayerAvatar from './PlayerAvatar';
@@ -6,6 +5,7 @@ import BarChartIcon from './icons/BarChartIcon';
 import SessionGraphModal from './SessionGraphModal';
 import EditIcon from './icons/EditIcon';
 import TrashIcon from './icons/TrashIcon';
+import SpinnerIcon from './icons/SpinnerIcon';
 
 
 interface SessionDetailModalProps {
@@ -14,7 +14,7 @@ interface SessionDetailModalProps {
   allPlayers: Player[];
   onClose: () => void;
   onSave: (session: Session) => void;
-  onDelete: (sessionId: string) => void;
+  onDelete: (sessionId: string) => Promise<void>;
   onViewProfile: (playerId: string) => void;
 }
 
@@ -30,6 +30,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   const [editedSession, setEditedSession] = useState<Session>(session);
   const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   useEffect(() => {
     setEditedSession(session);
@@ -71,10 +72,18 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     setIsEditing(false);
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = async () => {
     if (window.confirm("Tem certeza que deseja excluir este jogo do histórico? Esta ação não pode ser desfeita.")) {
-        onDelete(session.id);
-        onClose();
+        setIsDeleting(true);
+        try {
+            await onDelete(session.id);
+            onClose(); // Close modal only on success
+        } catch (error) {
+            // The error toast is already shown by the App component
+            // We just stop the loading state here
+        } finally {
+            setIsDeleting(false);
+        }
     }
   };
   
@@ -116,11 +125,17 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 </button>
                 {isUserAdmin && (
                     <button 
-                        onClick={handleDeleteClick} 
-                        className="flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-red-800/50 text-red-400 hover:bg-red-800 hover:text-white shadow-md transition-colors"
+                        onClick={handleDeleteClick}
+                        disabled={isDeleting}
+                        className="flex items-center justify-center w-28 h-[38px] text-sm font-semibold rounded-md bg-red-800/50 text-red-400 hover:bg-red-800 hover:text-white shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Excluir Jogo do Histórico"
                     >
-                        <span className="h-5 w-5 mr-2"><TrashIcon /></span>Excluir
+                        {isDeleting ? <SpinnerIcon /> : (
+                            <>
+                                <span className="h-5 w-5 mr-2"><TrashIcon /></span>
+                                <span>Excluir</span>
+                            </>
+                        )}
                     </button>
                 )}
                 <button onClick={onClose} className="text-poker-gray hover:text-white text-3xl leading-none">&times;</button>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { 
@@ -509,15 +508,19 @@ const App: React.FC = () => {
 
     const handleDeleteHistoricGame = useCallback(async (sessionId: string) => {
         if (!isUserAdmin) {
-            showToast('Apenas administradores podem excluir jogos.', 'error');
-            return;
+            const msg = 'Apenas administradores podem excluir jogos.';
+            showToast(msg, 'error');
+            throw new Error(msg);
         }
         try {
             await deleteDoc(doc(db, 'sessions', sessionId));
             showToast('Jogo excluído do histórico.', 'success');
+            // The onSnapshot listener should automatically update the UI.
         } catch (error) {
             console.error("Error deleting session:", error);
-            showToast('Erro ao excluir o jogo.', 'error');
+            const msg = 'Erro ao excluir o jogo. Verifique as permissões.';
+            showToast(msg, 'error');
+            throw error; // Re-throw to be caught by the modal
         }
     }, [isUserAdmin, showToast]);
 
