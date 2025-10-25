@@ -498,8 +498,6 @@ const App: React.FC = () => {
             return;
         }
         try {
-            // CORREÇÃO: O Firestore não permite que o campo 'id' seja incluído nos dados de atualização.
-            // Separamos o ID do restante do objeto 'session' antes de enviá-lo para o 'updateDoc'.
             const { id, ...sessionData } = session;
             await updateDoc(doc(db, 'sessions', id), sessionData);
             showToast('Histórico do jogo atualizado!', 'success');
@@ -513,26 +511,18 @@ const App: React.FC = () => {
         if (!isUserAdmin) {
             const msg = 'Apenas administradores podem excluir jogos.';
             showToast(msg, 'error');
-            throw new Error(msg); // Lança o erro para a UI (modal) saber que falhou
+            throw new Error(msg);
         }
 
         try {
-            // 1. Envia a ordem de exclusão para o Firestore.
             await deleteDoc(doc(db, 'sessions', sessionId));
-            
-            // 2. CORREÇÃO: Atualiza o estado local imediatamente após o sucesso da exclusão.
-            // Isso evita a "condição de corrida" com o listener do Firestore e garante
-            // que a UI reflita a mudança instantaneamente.
             setSessionHistory(prevHistory => prevHistory.filter(s => s.id !== sessionId));
-
-            // 3. Exibe a mensagem de sucesso.
             showToast('Jogo excluído do histórico.', 'success');
         } catch (error) {
-            // Se a exclusão falhar, a UI não é alterada e o erro é exibido.
             console.error("Error deleting session:", error);
             const msg = 'Erro ao excluir o jogo. Verifique as permissões.';
             showToast(msg, 'error');
-            throw error; // Notifica o modal que a operação falhou.
+            throw error;
         }
     }, [isUserAdmin, showToast]);
 
