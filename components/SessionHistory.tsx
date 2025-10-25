@@ -91,23 +91,22 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({
               <div
                 key={session.id}
                 onClick={() => handleSessionClick(session)}
-                className="bg-poker-dark rounded-lg p-4 cursor-pointer hover:bg-poker-dark/50 transition-colors duration-200 flex flex-col sm:flex-row sm:items-center sm:justify-between"
+                className="bg-poker-dark rounded-lg p-4 cursor-pointer hover:bg-poker-dark/50 transition-colors duration-200 grid grid-cols-2 md:grid-cols-[2fr_1fr_1fr] gap-x-4 gap-y-2 items-center"
               >
-                {/* Left side: Name and Date */}
-                <div className="flex-grow mb-3 sm:mb-0">
-                  <h3 className="font-bold text-lg text-white">{session.name}</h3>
+                {/* Coluna 1: Nome e Data */}
+                <div className="col-span-2 md:col-span-1">
+                  <h3 className="font-bold text-lg text-white truncate" title={session.name}>{session.name}</h3>
                   <p className="text-sm text-poker-gray">{session.date.toDate().toLocaleDateString('pt-BR')}</p>
                 </div>
-                {/* Right side: Player count and Pot */}
-                <div className="flex items-center space-x-6 flex-shrink-0 self-start sm:self-center">
-                  <div className="text-left sm:text-right">
-                    <p className="text-xs uppercase text-poker-gray">Jogadores</p>
-                    <p className="text-lg font-semibold text-white">{session.players.length}</p>
-                  </div>
-                  <div className="text-left sm:text-right">
-                    <p className="text-xs uppercase text-poker-gray">Montante Total</p>
-                    <p className="text-xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
-                  </div>
+                {/* Coluna 2: Jogadores */}
+                <div className="text-left md:text-center">
+                  <p className="text-xs uppercase text-poker-gray">Jogadores</p>
+                  <p className="text-lg font-semibold text-white">{session.players.length}</p>
+                </div>
+                {/* Coluna 3: Montante Total */}
+                <div className="text-left md:text-right">
+                  <p className="text-xs uppercase text-poker-gray">Montante Total</p>
+                  <p className="text-xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
                 </div>
               </div>
             );
