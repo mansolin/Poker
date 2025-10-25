@@ -3,6 +3,58 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { Player, DinnerSession, DinnerParticipant } from '../types';
 import PlayerAvatar from './PlayerAvatar';
 import PlusIcon from './icons/PlusIcon';
+import TrashIcon from './icons/TrashIcon';
+import SpinnerIcon from './icons/SpinnerIcon';
+
+const DeleteDinnerConfirmationModal: React.FC<{
+    dinner: DinnerSession;
+    onClose: () => void;
+    onConfirm: (dinnerId: string) => Promise<void>;
+}> = ({ dinner, onClose, onConfirm }) => {
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleConfirm = async () => {
+        setIsDeleting(true);
+        setError('');
+        try {
+            await onConfirm(dinner.id);
+            onClose();
+        } catch (e: any) {
+            setError(e.message || 'Falha ao excluir.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="p-6 text-center">
+                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-800/50 mb-4">
+                       <TrashIcon />
+                    </div>
+                    <h4 className="text-lg font-bold text-white">Excluir Jantar?</h4>
+                    <p className="text-sm text-poker-gray my-2">
+                        Você está prestes a excluir permanentemente o jantar de:
+                        <br />
+                        <strong className="text-white">{dinner.name}</strong>
+                    </p>
+                    <p className="text-xs text-red-400 font-semibold">Esta ação não pode ser desfeita.</p>
+                     {error && <p className="text-sm text-red-500 text-center mt-3">{error}</p>}
+                </div>
+                <div className="p-4 border-t border-poker-dark flex justify-center gap-4">
+                    <button onClick={onClose} disabled={isDeleting} className="w-full px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm font-semibold">
+                        Cancelar
+                    </button>
+                    <button onClick={handleConfirm} disabled={isDeleting} className="w-full h-10 flex justify-center items-center text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm disabled:bg-poker-gray/50">
+                        {isDeleting ? <SpinnerIcon /> : 'Confirmar Exclusão'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 interface DinnerProps {
     isUserAdmin: boolean;
@@ -14,11 +66,13 @@ interface DinnerProps {
     onUpdateDinner: (updatedDinnerData: Partial<DinnerSession>) => void;
     onFinalizeDinner: () => void;
     onCancelDinner: () => void;
+    onDeleteDinnerSession: (dinnerSessionId: string) => Promise<void>;
 }
 
-const Dinner: React.FC<DinnerProps> = ({ isUserAdmin, allPlayers, liveDinner, dinnerHistory, onStartDinner, onUpdateDinner, onFinalizeDinner, onCancelDinner }) => {
+const Dinner: React.FC<DinnerProps> = ({ isUserAdmin, allPlayers, liveDinner, dinnerHistory, onStartDinner, onUpdateDinner, onFinalizeDinner, onCancelDinner, onDeleteDinnerSession }) => {
     const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+    const [dinnerToDelete, setDinnerToDelete] = useState<DinnerSession | null>(null);
 
     const [foodCost, setFoodCost] = useState(liveDinner?.totalFoodCost || 0);
     const [drinkCost, setDrinkCost] = useState(liveDinner?.totalDrinkCost || 0);
@@ -183,19 +237,31 @@ const Dinner: React.FC<DinnerProps> = ({ isUserAdmin, allPlayers, liveDinner, di
                                 dinnerHistory.map(dinner => {
                                     const totalCost = dinner.totalFoodCost + dinner.totalDrinkCost;
                                     return (
-                                        <div key={dinner.id} className="bg-poker-dark rounded-lg p-4 grid grid-cols-2 md:grid-cols-[2fr_1fr_1fr] gap-x-4 gap-y-2 items-center">
-                                            <div className="col-span-2 md:col-span-1">
-                                                <h4 className="font-bold text-lg text-white truncate" title={dinner.name}>{dinner.name}</h4>
-                                                <p className="text-sm text-poker-gray">{dinner.date.toDate().toLocaleDateString('pt-BR')}</p>
+                                        <div key={dinner.id} className="bg-poker-dark rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                            <div className="w-full grid grid-cols-2 md:grid-cols-[2fr_1fr_1fr] gap-x-4 gap-y-2 items-center flex-grow">
+                                                <div className="col-span-2 md:col-span-1">
+                                                    <h4 className="font-bold text-lg text-white truncate" title={dinner.name}>{dinner.name}</h4>
+                                                    <p className="text-sm text-poker-gray">{dinner.date.toDate().toLocaleDateString('pt-BR')}</p>
+                                                </div>
+                                                <div className="text-left md:text-center">
+                                                    <p className="text-xs uppercase text-poker-gray">Participantes</p>
+                                                    <p className="text-lg font-semibold text-white">{dinner.participants.length}</p>
+                                                </div>
+                                                <div className="text-left md:text-right">
+                                                    <p className="text-xs uppercase text-poker-gray">Custo Total</p>
+                                                    <p className="text-xl font-bold text-poker-gold">R$ {totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                </div>
                                             </div>
-                                            <div className="text-left md:text-center">
-                                                <p className="text-xs uppercase text-poker-gray">Participantes</p>
-                                                <p className="text-lg font-semibold text-white">{dinner.participants.length}</p>
-                                            </div>
-                                            <div className="text-left md:text-right">
-                                                <p className="text-xs uppercase text-poker-gray">Custo Total</p>
-                                                <p className="text-xl font-bold text-poker-gold">R$ {totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                            </div>
+                                            {isUserAdmin && (
+                                                <button 
+                                                    onClick={() => setDinnerToDelete(dinner)}
+                                                    className="flex-shrink-0 self-start sm:self-center px-3 py-1.5 text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-md flex items-center gap-1"
+                                                    title="Excluir Jantar do Histórico"
+                                                >
+                                                    <TrashIcon />
+                                                    <span className="hidden sm:inline">Excluir</span>
+                                                </button>
+                                            )}
                                         </div>
                                     );
                                 })
@@ -233,6 +299,14 @@ const Dinner: React.FC<DinnerProps> = ({ isUserAdmin, allPlayers, liveDinner, di
                         </footer>
                     </div>
                 </div>
+            )}
+
+            {dinnerToDelete && isUserAdmin && (
+                <DeleteDinnerConfirmationModal
+                    dinner={dinnerToDelete}
+                    onClose={() => setDinnerToDelete(null)}
+                    onConfirm={onDeleteDinnerSession}
+                />
             )}
         </>
     );

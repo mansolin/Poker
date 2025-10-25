@@ -676,6 +676,24 @@ const App: React.FC = () => {
             }
         }
     }, [isUserAdmin, showToast]);
+    
+    const handleDeleteDinnerSession = useCallback(async (dinnerSessionId: string) => {
+        if (!isUserAdmin) {
+            const msg = 'Apenas administradores podem excluir jantares.';
+            showToast(msg, 'error');
+            throw new Error(msg);
+        }
+
+        try {
+            await deleteDoc(doc(db, 'dinner_sessions', dinnerSessionId));
+            showToast('Jantar excluído do histórico.', 'success');
+        } catch (error) {
+            console.error("Error deleting dinner session:", error);
+            const msg = 'Erro ao excluir o jantar. Verifique as permissões.';
+            showToast(msg, 'error');
+            throw new Error(msg);
+        }
+    }, [isUserAdmin, showToast]);
 
     // Settings Handlers
     const handleSaveDefaults = useCallback(async (defaults: GameDefaults) => {
@@ -825,6 +843,7 @@ const App: React.FC = () => {
                             onUpdateDinner={handleUpdateDinner}
                             onFinalizeDinner={handleFinalizeDinner}
                             onCancelDinner={handleCancelDinner}
+                            onDeleteDinnerSession={handleDeleteDinnerSession}
                         />;
             case View.Ranking:
             default:
