@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Session, Player, GamePlayer } from '../types';
 import PlayerAvatar from './PlayerAvatar';
@@ -88,7 +89,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     setDeleteError('');
     try {
         await onDelete(session.id);
-        // Success: close all modals
+        // Success: close all modals. The `onSnapshot` listener in App.tsx will handle the UI update.
         setDeleteConfirmationInput('');
         setIsDeleteConfirmOpen(false);
         onClose();

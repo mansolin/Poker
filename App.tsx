@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { 
@@ -515,13 +516,18 @@ const App: React.FC = () => {
         }
 
         try {
+            // Await the deletion from Firestore. This ensures the operation completes on the server.
             await deleteDoc(doc(db, 'sessions', sessionId));
-            setSessionHistory(prevHistory => prevHistory.filter(s => s.id !== sessionId));
+            
+            // On success, show the toast. The onSnapshot listener will then automatically
+            // receive the change from the server and update the UI, providing a single source of truth.
             showToast('Jogo excluído do histórico.', 'success');
         } catch (error) {
             console.error("Error deleting session:", error);
-            const msg = 'Erro ao excluir o jogo. Verifique as permissões.';
+            const msg = 'Erro ao excluir o jogo. Verifique as permissões no Firebase.';
             showToast(msg, 'error');
+            // Re-throw the error to be caught by the calling component (the modal), 
+            // so it can display a specific error message to the user.
             throw error;
         }
     }, [isUserAdmin, showToast]);
