@@ -9,7 +9,7 @@ import SpinnerIcon from './icons/SpinnerIcon';
 const DeleteDinnerConfirmationModal: React.FC<{
     dinner: DinnerSession;
     onClose: () => void;
-    onConfirm: (dinnerId: string) => Promise<void>;
+    onConfirm: (dinnerId: string) => Promise<{ success: boolean; message?: string }>;
 }> = ({ dinner, onClose, onConfirm }) => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState('');
@@ -17,14 +17,13 @@ const DeleteDinnerConfirmationModal: React.FC<{
     const handleConfirm = async () => {
         setIsDeleting(true);
         setError('');
-        try {
-            await onConfirm(dinner.id);
+        const result = await onConfirm(dinner.id);
+        if (result.success) {
             onClose();
-        } catch (e: any) {
-            setError(e.message || 'Falha ao excluir.');
-        } finally {
-            setIsDeleting(false);
+        } else {
+            setError(result.message || 'Falha ao excluir.');
         }
+        setIsDeleting(false);
     };
 
     return (
@@ -41,7 +40,7 @@ const DeleteDinnerConfirmationModal: React.FC<{
                         <strong className="text-white">{dinner.name}</strong>
                     </p>
                     <p className="text-xs text-red-400 font-semibold">Esta ação não pode ser desfeita.</p>
-                     {error && <p className="text-sm text-red-500 text-center mt-3">{error}</p>}
+                     {error && <p className="text-sm text-red-500 text-center mt-3 bg-red-500/10 p-2 rounded-md">{error}</p>}
                 </div>
                 <div className="p-4 border-t border-poker-dark flex justify-center gap-4">
                     <button onClick={onClose} disabled={isDeleting} className="w-full px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm font-semibold">
@@ -66,7 +65,7 @@ interface DinnerProps {
     onUpdateDinner: (updatedDinnerData: Partial<DinnerSession>) => void;
     onFinalizeDinner: () => void;
     onCancelDinner: () => void;
-    onDeleteDinnerSession: (dinnerSessionId: string) => Promise<void>;
+    onDeleteDinnerSession: (dinnerSessionId: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 const Dinner: React.FC<DinnerProps> = ({ isUserAdmin, allPlayers, liveDinner, dinnerHistory, onStartDinner, onUpdateDinner, onFinalizeDinner, onCancelDinner, onDeleteDinnerSession }) => {

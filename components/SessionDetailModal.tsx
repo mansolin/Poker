@@ -14,36 +14,30 @@ interface SessionDetailModalProps {
   allPlayers: Player[];
   onClose: () => void;
   onSave: (session: Session) => void;
-  onDelete: (sessionId: string) => Promise<void>;
+  onDelete: (sessionId: string) => Promise<{ success: boolean; message?: string }>;
   onViewProfile: (playerId: string) => void;
 }
 
 const DeleteConfirmationModal: React.FC<{
     sessionName: string;
     onClose: () => void;
-    onConfirm: () => Promise<void>;
+    onConfirm: () => Promise<{ success: boolean; message?: string }>;
 }> = ({ sessionName, onClose, onConfirm }) => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState('');
-    const [canClick, setCanClick] = useState(false);
-
-    useEffect(() => {
-        const timer = setTimeout(() => setCanClick(true), 1000); // 1-second delay
-        return () => clearTimeout(timer);
-    }, []);
 
     const handleConfirm = async () => {
         setIsDeleting(true);
         setError('');
-        try {
-            await onConfirm();
-            onClose();
-        } catch (e: any) {
-            setError(e.message || 'Falha ao excluir. Verifique suas permissões.');
-        } finally {
-            setIsDeleting(false);
+        const result = await onConfirm();
+        if (!result.success) {
+            setError(result.message || 'Falha ao excluir. Verifique suas permissões.');
+        } else {
+            onClose(); // Close only on success
         }
+        setIsDeleting(false);
     };
+
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
@@ -69,9 +63,9 @@ const DeleteConfirmationModal: React.FC<{
                     </button>
                     <button
                         onClick={handleConfirm}
-                        disabled={isDeleting || !canClick}
-                        className="w-full h-10 flex justify-center items-center text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
-                        title={!canClick ? "Aguarde um segundo..." : "Confirmar exclusão"}
+                        disabled={isDeleting}
+                        className="w-full h-10 flex justify-center items-center text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm disabled:bg-poker-gray/50"
+                        title={"Confirmar exclusão"}
                     >
                         {isDeleting ? <SpinnerIcon /> : 'Excluir Jogo'}
                     </button>
@@ -137,9 +131,13 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    await onDelete(session.id);
-    setIsDeleteConfirmOpen(false);
-    onClose();
+    const result = await onDelete(session.id);
+    // The confirmation modal now handles closing and error display based on the result.
+    if (result.success) {
+      setIsDeleteConfirmOpen(false);
+      onClose();
+    }
+    return result;
   };
   
   const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,7 +272,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
        <DeleteConfirmationModal
             sessionName={session.name}
             onClose={() => setIsDeleteConfirmOpen(false)}
-            onConfirm={handleConfirmDelete}
+            onConfirm={() => onDelete(session.id)}
        />
     )}
     </>

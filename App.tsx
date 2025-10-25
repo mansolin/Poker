@@ -527,24 +527,25 @@ const App: React.FC = () => {
         }
     }, [isUserAdmin, showToast]);
 
-    const handleDeleteHistoricGame = useCallback(async (sessionId: string) => {
+    const handleDeleteHistoricGame = useCallback(async (sessionId: string): Promise<{ success: boolean; message?: string }> => {
         if (!isUserAdmin) {
             const msg = 'Apenas administradores podem excluir jogos.';
             showToast(msg, 'error');
-            throw new Error(msg);
+            return { success: false, message: msg };
         }
 
         try {
             await deleteDoc(doc(db, 'sessions', sessionId));
-            // The onSnapshot listener will automatically update the UI.
             showToast('Jogo excluído do histórico.', 'success');
+            return { success: true };
         } catch (error) {
             console.error("Error deleting session:", error);
             const msg = 'Erro ao excluir o jogo. Verifique as permissões no Firebase.';
             showToast(msg, 'error');
-            throw new Error(msg);
+            return { success: false, message: msg };
         }
     }, [isUserAdmin, showToast]);
+
 
     const handleViewProfile = (playerId: string) => {
         setViewingPlayerId(playerId);
@@ -677,23 +678,25 @@ const App: React.FC = () => {
         }
     }, [isUserAdmin, showToast]);
     
-    const handleDeleteDinnerSession = useCallback(async (dinnerSessionId: string) => {
+    const handleDeleteDinnerSession = useCallback(async (dinnerSessionId: string): Promise<{ success: boolean; message?: string }> => {
         if (!isUserAdmin) {
             const msg = 'Apenas administradores podem excluir jantares.';
             showToast(msg, 'error');
-            throw new Error(msg);
+            return { success: false, message: msg };
         }
 
         try {
             await deleteDoc(doc(db, 'dinner_sessions', dinnerSessionId));
             showToast('Jantar excluído do histórico.', 'success');
+            return { success: true };
         } catch (error) {
             console.error("Error deleting dinner session:", error);
             const msg = 'Erro ao excluir o jantar. Verifique as permissões.';
             showToast(msg, 'error');
-            throw new Error(msg);
+            return { success: false, message: msg };
         }
     }, [isUserAdmin, showToast]);
+
 
     // Settings Handlers
     const handleSaveDefaults = useCallback(async (defaults: GameDefaults) => {
