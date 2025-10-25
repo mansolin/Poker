@@ -287,7 +287,7 @@ const App: React.FC = () => {
     }, []);
 
     // Game Handlers
-    const handleStartGame = useCallback(async (playerIds: string[]) => {
+    const handleStartGame = useCallback(async (playerIds: string[], gameName: string) => {
         if (!isUserAdmin) {
             showToast('Apenas administradores podem iniciar um jogo.', 'error');
             return;
@@ -310,12 +310,9 @@ const App: React.FC = () => {
             paid: false,
         }));
 
-        const date = new Date();
-        const gameName = date.toLocaleDateString('pt-BR', { year: '2-digit', month: '2-digit', day: '2-digit' });
-        
         const newGame: Omit<Session, 'id'> = {
             name: gameName,
-            date: Timestamp.fromDate(date),
+            date: Timestamp.now(),
             players: gamePlayers,
             createdBy: user.uid,
         };

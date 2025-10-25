@@ -42,8 +42,8 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
   const difference = distributedChips - totalCash;
 
   const handleSaveName = () => {
-    if (!/^\d{2}\/\d{2}\/\d{2}$/.test(editedName.trim())) {
-        alert("O nome do jogo deve estar no formato DD/MM/AA.");
+    if (editedName.trim() === '') {
+        alert("O nome do jogo não pode estar vazio.");
         return;
     }
     onUpdateGameName(editedName.trim());
@@ -51,15 +51,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
   };
 
   const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 6) value = value.slice(0, 6);
-    
-    if (value.length > 4) {
-      value = `${value.slice(0, 2)}/${value.slice(2, 4)}/${value.slice(4)}`;
-    } else if (value.length > 2) {
-      value = `${value.slice(0, 2)}/${value.slice(2)}`;
-    }
-    setEditedName(value);
+    setEditedName(e.target.value);
   };
   
   const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => event.target.select();
@@ -79,7 +71,7 @@ const LiveGame: React.FC<LiveGameProps> = ({ isUserAdmin, players, allPlayers, g
        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-poker-light p-4 rounded-lg shadow-xl gap-4">
           {isEditingName && isUserAdmin ? (
             <div className="flex items-center gap-2 w-full">
-                <input type="text" value={editedName} onChange={handleGameNameChange} placeholder="DD/MM/AA" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg w-full p-2" autoFocus />
+                <input type="text" value={editedName} onChange={handleGameNameChange} placeholder="Nome do Jogo" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg w-full p-2" autoFocus onFocus={handleFocus} />
                 <button onClick={handleSaveName} className="px-4 py-2 text-white bg-poker-green hover:bg-poker-green/80 rounded-lg text-sm font-semibold">Salvar</button>
                 <button onClick={() => setIsEditingName(false)} className="px-4 py-2 text-poker-gray bg-poker-dark hover:bg-poker-dark/50 rounded-lg text-sm">Cancelar</button>
             </div>

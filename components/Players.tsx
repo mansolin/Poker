@@ -6,6 +6,7 @@ import TrashIcon from './icons/TrashIcon';
 import WhatsAppIcon from './icons/WhatsAppIcon';
 import PlayerAvatar from './PlayerAvatar';
 import SpinnerIcon from './icons/SpinnerIcon';
+import StartGameModal from './StartGameModal';
 
 interface PlayerFormModalProps {
     player: Player | null;
@@ -109,7 +110,7 @@ interface PlayersProps {
     onAddPlayer: (playerData: Omit<Player, 'id' | 'isActive'>) => Promise<void>;
     onUpdatePlayer: (player: Player) => Promise<void>;
     onDeletePlayer: (playerId: string) => Promise<void>;
-    onStartGame: (playerIds: string[]) => Promise<void>;
+    onStartGame: (playerIds: string[], gameName: string) => Promise<void>;
     onTogglePlayerStatus: (playerId: string) => Promise<void>;
     onViewProfile: (playerId: string) => void;
 }
@@ -127,6 +128,7 @@ const Players: React.FC<PlayersProps> = ({
     const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+    const [isStartGameModalOpen, setIsStartGameModalOpen] = useState(false);
 
     const { activePlayers, inactivePlayers } = useMemo(() => {
         const active: Player[] = [];
@@ -147,9 +149,14 @@ const Players: React.FC<PlayersProps> = ({
         if (selectedPlayers.length < 2) {
             alert('Selecione pelo menos 2 jogadores para iniciar um jogo.');
         } else {
-            onStartGame(selectedPlayers);
-            setSelectedPlayers([]);
+            setIsStartGameModalOpen(true);
         }
+    };
+
+    const handleConfirmStartGame = async (gameName: string) => {
+        await onStartGame(selectedPlayers, gameName);
+        setSelectedPlayers([]);
+        setIsStartGameModalOpen(false);
     };
 
     const handleOpenAddModal = () => {
@@ -246,6 +253,14 @@ const Players: React.FC<PlayersProps> = ({
                     onSave={handleSavePlayer}
                     onClose={handleCloseModal}
                     onDelete={onDeletePlayer}
+                />
+            )}
+
+            {isStartGameModalOpen && isUserAdmin && (
+                <StartGameModal
+                    isOpen={isStartGameModalOpen}
+                    onClose={() => setIsStartGameModalOpen(false)}
+                    onStartGame={handleConfirmStartGame}
                 />
             )}
         </>

@@ -62,8 +62,8 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   };
   
   const handleSave = () => {
-    if (isUserAdmin && !/^\d{2}\/\d{2}\/\d{2}$/.test(editedSession.name.trim())) {
-        alert("O nome do jogo deve estar no formato DD/MM/AA.");
+    if (isUserAdmin && editedSession.name.trim() === '') {
+        alert("O nome do jogo não pode estar vazio.");
         return;
     }
     if (isUserAdmin && !chipsMatch) {
@@ -98,15 +98,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   };
   
   const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 6) value = value.slice(0, 6);
-    
-    if (value.length > 4) {
-      value = `${value.slice(0, 2)}/${value.slice(2, 4)}/${value.slice(4)}`;
-    } else if (value.length > 2) {
-      value = `${value.slice(0, 2)}/${value.slice(2)}`;
-    }
-    setEditedSession(prev => ({ ...prev, name: value }));
+    setEditedSession(prev => ({ ...prev, name: e.target.value }));
   };
   
   const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => event.target.select();
@@ -119,7 +111,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
             <div className="flex items-center gap-2">
                 <h3 className="text-xl font-bold text-white">Detalhes do Jogo:</h3>
                  {isEditing && isUserAdmin ? (
-                    <input type="text" value={editedSession.name} autoFocus onFocus={handleFocus} onChange={handleGameNameChange} placeholder="DD/MM/AA" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg p-2 w-32" />
+                    <input type="text" value={editedSession.name} autoFocus onFocus={handleFocus} onChange={handleGameNameChange} placeholder="Nome do Jogo" className="bg-poker-dark border border-poker-gray/20 text-white text-lg rounded-lg p-2" />
                  ) : (
                     <span className="text-xl font-bold text-poker-gold">{editedSession.name}</span>
                  )}
@@ -214,61 +206,50 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                     <h3 className="text-sm font-semibold text-poker-gray uppercase">Fichas Distribuídas</h3><p className={`text-2xl font-bold ${chipsMatch ? 'text-white' : 'text-red-500'}`}>{distributedChips.toLocaleString('pt-BR')}</p>
                     {!chipsMatch && (<div className="mt-1"><p className="text-xs text-red-400">Diferença: {difference > 0 ? '+' : ''}{difference.toLocaleString('pt-BR')}</p></div>)}
                 </div>
-                <div className="bg-poker-dark p-3 rounded-lg text-center"><h3 className="text-sm font-semibold text-poker-gray uppercase">Total em Fichas</h3><p className="text-2xl font-bold text-white">{totalCash.toLocaleString('pt-BR')}</p></div>
+                <div className="bg-poker-dark p-3 rounded-lg text-center"><h3 className="text-sm font-semibold text-poker-gray uppercase">Data do Jogo</h3><p className="text-2xl font-bold text-white">{editedSession.date.toDate().toLocaleDateString('pt-BR')}</p></div>
             </div>
-            {isUserAdmin && isEditing && (
-                <div className="flex justify-end items-center gap-2 mt-6">
-                    {!chipsMatch && totalCash > 0 && <p className="text-sm text-yellow-400 animate-pulse mr-auto">Ajuste as fichas para poder salvar.</p>}
-                    <button onClick={handleCancelEdit} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark/50 rounded-lg text-sm">Cancelar</button>
-                    <button onClick={handleSave} disabled={!chipsMatch || totalCash === 0} title={!chipsMatch ? "O total de fichas deve ser igual ao montante" : "Salvar alterações"} className="px-5 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm shadow-lg disabled:bg-poker-gray/50 disabled:cursor-not-allowed">Salvar Alterações</button>
-                </div>
-            )}
         </main>
+        {isEditing && isUserAdmin && (
+            <footer className="p-4 border-t border-poker-dark flex justify-between items-center flex-shrink-0">
+                <div className="text-left">
+                    {!chipsMatch && <p className="text-sm text-yellow-400">Ajuste as fichas para poder salvar.</p>}
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={handleCancelEdit} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
+                    <button onClick={handleSave} disabled={!chipsMatch} className="px-4 py-2 text-white bg-poker-green hover:bg-poker-green/80 font-medium rounded-lg text-sm disabled:bg-poker-gray/50">Salvar Alterações</button>
+                </div>
+            </footer>
+        )}
       </div>
     </div>
-
     {isGraphModalOpen && (
-        <SessionGraphModal
-            session={editedSession}
-            onClose={() => setIsGraphModalOpen(false)}
-        />
+        <SessionGraphModal session={editedSession} onClose={() => setIsGraphModalOpen(false)} />
     )}
-
     {isDeleteConfirmOpen && (
-      <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[60] p-4" onClick={() => setIsDeleteConfirmOpen(false)}>
-        <div className="bg-poker-dark rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-          <h3 className="text-lg font-bold text-red-500">Confirmar Exclusão Permanente</h3>
-          <p className="text-poker-gray my-4">
-            Esta ação não pode ser desfeita. Todos os dados do jogo serão removidos. Para confirmar, digite 
-            <strong className="text-white mx-1">{session.name}</strong>
-            no campo abaixo.
-          </p>
-          <input
-            type="text"
-            value={deleteConfirmationInput}
-            onChange={(e) => setDeleteConfirmationInput(e.target.value)}
-            className="w-full bg-poker-light border border-poker-gray/20 text-white text-sm rounded-lg p-2"
-            placeholder={session.name}
-            autoFocus
-          />
-          <div className="flex justify-end gap-4 mt-6">
-            <button 
-              onClick={() => { setIsDeleteConfirmOpen(false); setDeleteConfirmationInput(''); }} 
-              className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-light rounded-lg text-sm"
-              disabled={isDeleting}
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleConfirmDelete}
-              disabled={deleteConfirmationInput !== session.name || isDeleting}
-              className="w-40 h-10 flex justify-center items-center text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm disabled:bg-red-600/50 disabled:cursor-not-allowed"
-            >
-              {isDeleting ? <SpinnerIcon /> : 'Excluir Jogo'}
-            </button>
-          </div>
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+            <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="p-4">
+                    <h4 className="text-lg font-bold text-white">Confirmar Exclusão</h4>
+                    <p className="text-sm text-poker-gray my-2">Esta ação não pode ser desfeita. Para confirmar, digite o nome do jogo: <strong className="text-white">{session.name}</strong></p>
+                    <input
+                        type="text"
+                        value={deleteConfirmationInput}
+                        onChange={e => setDeleteConfirmationInput(e.target.value)}
+                        className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5"
+                    />
+                </div>
+                <div className="p-4 border-t border-poker-dark flex justify-end gap-2">
+                    <button onClick={() => setIsDeleteConfirmOpen(false)} disabled={isDeleting} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
+                    <button
+                        onClick={handleConfirmDelete}
+                        disabled={deleteConfirmationInput !== session.name || isDeleting}
+                        className="w-32 h-10 flex justify-center items-center text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm disabled:bg-poker-gray/50"
+                    >
+                        {isDeleting ? <SpinnerIcon /> : 'Excluir'}
+                    </button>
+                </div>
+            </div>
         </div>
-      </div>
     )}
     </>
   );
