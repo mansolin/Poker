@@ -516,8 +516,9 @@ const App: React.FC = () => {
 
         try {
             await deleteDoc(doc(db, 'sessions', sessionId));
-            // Let the onSnapshot listener handle the UI update automatically.
-            // This is the most robust way to ensure UI consistency with the backend.
+            // Manually update the local state to provide immediate feedback,
+            // preventing the "reappearing game" bug.
+            setSessionHistory(prev => prev.filter(s => s.id !== sessionId));
             showToast('Jogo excluído do histórico.', 'success');
         } catch (error) {
             console.error("Error deleting session:", error);
@@ -525,7 +526,7 @@ const App: React.FC = () => {
             showToast(msg, 'error');
             // Re-throw the error to be caught by the calling component (the modal),
             // so it can display a specific error message to the user.
-            throw error;
+            throw new Error(msg);
         }
     }, [isUserAdmin, showToast]);
 
