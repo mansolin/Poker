@@ -536,7 +536,7 @@ const App: React.FC = () => {
 
         try {
             await deleteDoc(doc(db, 'sessions', sessionId));
-             setSessionHistory(prev => prev.filter(s => s.id !== sessionId));
+            // The onSnapshot listener will automatically update the UI.
             showToast('Jogo excluído do histórico.', 'success');
         } catch (error) {
             console.error("Error deleting session:", error);
