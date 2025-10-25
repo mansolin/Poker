@@ -493,13 +493,19 @@ const App: React.FC = () => {
 
     // History & Profile Handlers
     const handleEditHistoricGame = useCallback(async (session: Session) => {
-        if (!isUserAdmin) return;
+        if (!isUserAdmin) {
+            showToast('Apenas administradores podem editar o histórico.', 'error');
+            return;
+        }
         try {
-            await updateDoc(doc(db, 'sessions', session.id), session);
+            // CORREÇÃO: O Firestore não permite que o campo 'id' seja incluído nos dados de atualização.
+            // Separamos o ID do restante do objeto 'session' antes de enviá-lo para o 'updateDoc'.
+            const { id, ...sessionData } = session;
+            await updateDoc(doc(db, 'sessions', id), sessionData);
             showToast('Histórico do jogo atualizado!', 'success');
         } catch (error) {
             console.error("Error updating historic game:", error);
-            showToast('Erro ao atualizar o histórico.', 'error');
+            showToast('Erro ao atualizar o histórico. Verifique as permissões.', 'error');
         }
     }, [isUserAdmin, showToast]);
 
