@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { 
@@ -687,25 +688,51 @@ const App: React.FC = () => {
     const handleAddUser = async (userData: Omit<AppUser, 'uid'>, password: string): Promise<boolean> => {
         if (!isUserOwner) return false;
         try {
-            alert("A criação de usuários por um administrador deve ser feita em um ambiente seguro (backend/cloud function). Esta função é demonstrativa.");
+            // This is a simplified client-side user creation for demonstration.
+            // In a real-world app, this should be handled by a secure backend function
+            // to prevent abuse and to create the auth user properly.
+            const tempAuth = auth; // Use the main auth instance
+            // FIX: Use the 'password' parameter instead of 'userData.password' which does not exist.
+            const userCredential = await createUserWithEmailAndPassword(tempAuth, userData.email, password);
+            await setDoc(doc(db, 'users', userCredential.user.uid), {
+                name: userData.name,
+                email: userData.email,
+                role: userData.role,
+            });
+            showToast('Usuário criado com sucesso!', 'success');
             return true;
-        } catch (error) {
+        } catch (error: any) {
             console.error("User creation failed", error);
-            showToast("Erro ao criar usuário.", 'error');
+            const message = error.code === 'auth/email-already-in-use' 
+                ? 'Este e-mail já está em uso.'
+                : 'Erro ao criar usuário.';
+            showToast(message, 'error');
             return false;
         }
     };
     
      const handleDeleteUser = useCallback(async (uid: string) => {
-        if (!isUserOwner) return;
-        if (window.confirm("Excluir este usuário permanentemente? (Esta ação não pode ser desfeita)")) {
-            try {
-                alert("A exclusão de usuários requer um ambiente seguro (backend/cloud function). Esta função é demonstrativa.");
-            } catch (error) {
-                showToast("Erro ao excluir usuário.", 'error');
-            }
+        if (!isUserOwner) {
+            showToast('Apenas o dono pode excluir usuários.', 'error');
+            return;
         }
-    }, [isUserOwner, showToast]);
+
+        const userToDelete = appUsers.find(u => u.uid === uid);
+        if (userToDelete?.email === 'marcioansolin@gmail.com') {
+            showToast('Não é possível excluir o usuário dono do aplicativo.', 'error');
+            return;
+        }
+        
+        try {
+            // This only deletes the user's data from Firestore, not their auth account.
+            // A Cloud Function would be needed to delete the Firebase Auth user.
+            await deleteDoc(doc(db, 'users', uid));
+            showToast("Registro de usuário excluído do app.", 'success');
+        } catch (error) {
+            console.error("Error deleting user from Firestore:", error);
+            showToast("Erro ao excluir registro de usuário.", 'error');
+        }
+    }, [isUserOwner, showToast, appUsers]);
 
     // UI Render Logic
     const renderView = () => {

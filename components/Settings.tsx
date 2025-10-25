@@ -4,8 +4,59 @@ import type { AppUser, UserRole, GameDefaults } from '../types';
 import PlusIcon from './icons/PlusIcon';
 import TrashIcon from './icons/TrashIcon';
 import UserFormModal from './UserFormModal';
-import { setDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import SpinnerIcon from './icons/SpinnerIcon';
+
+interface DeleteUserConfirmationModalProps {
+    user: AppUser;
+    onClose: () => void;
+    onConfirm: (uid: string) => Promise<void>;
+}
+
+const DeleteUserConfirmationModal: React.FC<DeleteUserConfirmationModalProps> = ({ user, onClose, onConfirm }) => {
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleConfirm = async () => {
+        setIsDeleting(true);
+        setError('');
+        try {
+            await onConfirm(user.uid);
+            onClose();
+        } catch (e: any) {
+            setError(e.message || 'Falha ao excluir usuário.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="p-6 text-center">
+                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-800/50 mb-4">
+                        <TrashIcon />
+                    </div>
+                    <h4 className="text-lg font-bold text-white">Excluir Usuário?</h4>
+                    <p className="text-sm text-poker-gray my-2">
+                        Você está prestes a remover permanentemente o registro do usuário:
+                        <br />
+                        <strong className="text-white">{user.name} ({user.email})</strong>
+                    </p>
+                    <p className="text-xs text-red-400 font-semibold">Esta ação não pode ser desfeita.</p>
+                     {error && <p className="text-sm text-red-500 text-center mt-3">{error}</p>}
+                </div>
+                <div className="p-4 border-t border-poker-dark flex justify-center gap-4">
+                    <button onClick={onClose} disabled={isDeleting} className="w-full px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm font-semibold">
+                        Cancelar
+                    </button>
+                    <button onClick={handleConfirm} disabled={isDeleting} className="w-full h-10 flex justify-center items-center text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm disabled:bg-poker-gray/50">
+                        {isDeleting ? <SpinnerIcon /> : 'Confirmar Exclusão'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 interface SettingsProps {
     isUserOwner: boolean;
@@ -14,12 +65,13 @@ interface SettingsProps {
     onSaveDefaults: (defaults: GameDefaults) => void;
     gameDefaults: GameDefaults;
     onAddUser: (userData: Omit<AppUser, 'uid'>, password: string) => Promise<boolean>;
-    onDeleteUser: (uid: string) => void;
+    onDeleteUser: (uid: string) => Promise<void>;
 }
 
 const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUserRole, onSaveDefaults, gameDefaults, onAddUser, onDeleteUser }) => {
     const [isGeneratingData, setIsGeneratingData] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
     const [buyIn, setBuyIn] = useState(gameDefaults.buyIn);
     const [rebuy, setRebuy] = useState(gameDefaults.rebuy);
     const [clubPixKey, setClubPixKey] = useState(gameDefaults.clubPixKey || '');
@@ -41,28 +93,6 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
         }
     };
     
-    const handleCreateTestAdmin = async () => {
-        const testAdminEmail = 'admin@poker.com';
-        const userExists = appUsers.some(user => user.email === testAdminEmail);
-        
-        if (userExists) {
-            alert(`Usuário de teste (${testAdminEmail}) já existe.`);
-            return;
-        }
-
-        const userData = {
-            name: 'Admin de Teste',
-            email: testAdminEmail,
-            role: 'admin' as UserRole
-        };
-        const password = 'admin123'; // Min 6 chars required by Firebase
-
-        const success = await onAddUser(userData, password);
-        if (success) {
-            alert(`Admin de teste criado!\nEmail: ${testAdminEmail}\nSenha: ${password}`);
-        }
-    };
-
     const handleSaveDefaults = () => {
         onSaveDefaults({ buyIn, rebuy, clubPixKey });
     };
@@ -127,7 +157,7 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
                                                 <option value="pending">Pendente</option>
                                             </select>
                                             {user.email !== 'marcioansolin@gmail.com' && (
-                                                <button onClick={() => onDeleteUser(user.uid)} className="p-2 text-poker-gray hover:text-red-500" title="Excluir Usuário">
+                                                <button onClick={() => setUserToDelete(user)} className="p-2 text-poker-gray hover:text-red-500" title="Excluir Usuário">
                                                     <TrashIcon />
                                                 </button>
                                             )}
@@ -149,11 +179,6 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
                             >
                                 {isGeneratingData ? 'Gerando...' : 'Gerar Dados de Teste'}
                             </button>
-                             {isUserOwner && (
-                                <button onClick={handleCreateTestAdmin} className="px-4 py-2 text-sm font-semibold text-poker-gold bg-transparent border border-poker-gold hover:bg-poker-gold/10 rounded-md">
-                                    Criar Admin de Teste
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -162,6 +187,13 @@ const Settings: React.FC<SettingsProps> = ({ isUserOwner, appUsers, onUpdateUser
                 <UserFormModal
                     onSave={onAddUser}
                     onClose={() => setIsUserModalOpen(false)}
+                />
+            )}
+            {userToDelete && isUserOwner && (
+                <DeleteUserConfirmationModal
+                    user={userToDelete}
+                    onClose={() => setUserToDelete(null)}
+                    onConfirm={onDeleteUser}
                 />
             )}
         </>
