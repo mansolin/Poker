@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Session, Player } from '../types';
-import GameCard from './GameCard';
 import SessionDetailModal from './SessionDetailModal';
 import ArrowDownIcon from './icons/ArrowDownIcon';
 import ArrowUpIcon from './icons/ArrowUpIcon';
@@ -85,10 +84,34 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[70vh] overflow-y-auto pr-2">
-          {sortedHistory.map(session => (
-            <GameCard key={session.id} session={session} onClick={() => handleSessionClick(session)} />
-          ))}
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+          {sortedHistory.map(session => {
+            const totalPot = session.players.reduce((sum, p) => sum + p.totalInvested, 0);
+            return (
+              <div
+                key={session.id}
+                onClick={() => handleSessionClick(session)}
+                className="bg-poker-dark rounded-lg p-4 cursor-pointer hover:bg-poker-dark/50 transition-colors duration-200 flex flex-col sm:flex-row sm:items-center sm:justify-between"
+              >
+                {/* Left side: Name and Date */}
+                <div className="flex-grow mb-3 sm:mb-0">
+                  <h3 className="font-bold text-lg text-white">{session.name}</h3>
+                  <p className="text-sm text-poker-gray">{session.date.toDate().toLocaleDateString('pt-BR')}</p>
+                </div>
+                {/* Right side: Player count and Pot */}
+                <div className="flex items-center space-x-6 flex-shrink-0 self-start sm:self-center">
+                  <div className="text-left sm:text-right">
+                    <p className="text-xs uppercase text-poker-gray">Jogadores</p>
+                    <p className="text-lg font-semibold text-white">{session.players.length}</p>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="text-xs uppercase text-poker-gray">Montante Total</p>
+                    <p className="text-xl font-bold text-poker-gold">R$ {totalPot.toLocaleString('pt-BR')}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
