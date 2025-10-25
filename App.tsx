@@ -527,22 +527,20 @@ const App: React.FC = () => {
         }
     }, [isUserAdmin, showToast]);
 
-    const handleDeleteHistoricGame = useCallback(async (sessionId: string): Promise<{ success: boolean; message?: string }> => {
+    const handleDeleteHistoricGame = useCallback(async (sessionId: string): Promise<void> => {
         if (!isUserAdmin) {
-            const msg = 'Apenas administradores podem excluir jogos.';
-            showToast(msg, 'error');
-            return { success: false, message: msg };
+            showToast('Apenas administradores podem excluir jogos.', 'error');
+            return;
         }
-
         try {
             await deleteDoc(doc(db, 'sessions', sessionId));
-            showToast('Jogo excluído do histórico.', 'success');
-            return { success: true };
-        } catch (error) {
+            // No success toast. The UI updating via the listener is the confirmation.
+        } catch (error: any) {
             console.error("Error deleting session:", error);
-            const msg = 'Erro ao excluir o jogo. Verifique as permissões no Firebase.';
+            const msg = error.code === 'permission-denied' 
+                ? 'Permissão negada para excluir.' 
+                : 'Erro ao excluir o jogo.';
             showToast(msg, 'error');
-            return { success: false, message: msg };
         }
     }, [isUserAdmin, showToast]);
 
@@ -678,22 +676,20 @@ const App: React.FC = () => {
         }
     }, [isUserAdmin, showToast]);
     
-    const handleDeleteDinnerSession = useCallback(async (dinnerSessionId: string): Promise<{ success: boolean; message?: string }> => {
+    const handleDeleteDinnerSession = useCallback(async (dinnerSessionId: string): Promise<void> => {
         if (!isUserAdmin) {
-            const msg = 'Apenas administradores podem excluir jantares.';
-            showToast(msg, 'error');
-            return { success: false, message: msg };
+            showToast('Apenas administradores podem excluir jantares.', 'error');
+            return;
         }
-
         try {
             await deleteDoc(doc(db, 'dinner_sessions', dinnerSessionId));
-            showToast('Jantar excluído do histórico.', 'success');
-            return { success: true };
-        } catch (error) {
+            // No success toast. The UI updating via the listener is the confirmation.
+        } catch (error: any) {
             console.error("Error deleting dinner session:", error);
-            const msg = 'Erro ao excluir o jantar. Verifique as permissões.';
+            const msg = error.code === 'permission-denied' 
+                ? 'Permissão negada para excluir.' 
+                : 'Erro ao excluir o jantar.';
             showToast(msg, 'error');
-            return { success: false, message: msg };
         }
     }, [isUserAdmin, showToast]);
 

@@ -14,28 +14,24 @@ interface SessionDetailModalProps {
   allPlayers: Player[];
   onClose: () => void;
   onSave: (session: Session) => void;
-  onDelete: (sessionId: string) => Promise<{ success: boolean; message?: string }>;
+  onDelete: (sessionId: string) => Promise<void>;
   onViewProfile: (playerId: string) => void;
 }
 
 const DeleteConfirmationModal: React.FC<{
     sessionName: string;
     onClose: () => void;
-    onConfirm: () => Promise<{ success: boolean; message?: string }>;
+    onConfirm: () => Promise<void>;
 }> = ({ sessionName, onClose, onConfirm }) => {
     const [isDeleting, setIsDeleting] = useState(false);
-    const [error, setError] = useState('');
 
     const handleConfirm = async () => {
         setIsDeleting(true);
-        setError('');
-        const result = await onConfirm();
-        if (!result.success) {
-            setError(result.message || 'Falha ao excluir. Verifique suas permissões.');
-        } else {
-            onClose(); // Close only on success
-        }
+        await onConfirm();
+        // The parent (App.tsx) now handles error toasts.
+        // We always close the confirmation modal after the attempt.
         setIsDeleting(false);
+        onClose();
     };
 
 
@@ -53,9 +49,6 @@ const DeleteConfirmationModal: React.FC<{
                         <strong className="text-white">{sessionName}</strong>
                     </p>
                     <p className="text-xs text-red-400 font-semibold">Esta ação não pode ser desfeita.</p>
-                     {error && (
-                        <p className="text-sm text-red-500 text-center mt-3 bg-red-500/10 p-2 rounded-md">{error}</p>
-                    )}
                 </div>
                 <div className="p-4 border-t border-poker-dark flex justify-center gap-4">
                     <button onClick={onClose} disabled={isDeleting} className="w-full px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm font-semibold">
@@ -128,16 +121,6 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     }
     onSave(editedSession);
     setIsEditing(false);
-  };
-
-  const handleConfirmDelete = async () => {
-    const result = await onDelete(session.id);
-    // The confirmation modal now handles closing and error display based on the result.
-    if (result.success) {
-      setIsDeleteConfirmOpen(false);
-      onClose();
-    }
-    return result;
   };
   
   const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
