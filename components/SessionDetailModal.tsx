@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Session, Player, GamePlayer } from '../types';
 import PlayerAvatar from './PlayerAvatar';
@@ -19,6 +18,70 @@ interface SessionDetailModalProps {
   onViewProfile: (playerId: string) => void;
 }
 
+const DeleteConfirmationModal: React.FC<{
+    sessionName: string;
+    onClose: () => void;
+    onConfirm: () => Promise<void>;
+}> = ({ sessionName, onClose, onConfirm }) => {
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [error, setError] = useState('');
+    const [canClick, setCanClick] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setCanClick(true), 1000); // 1-second delay
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleConfirm = async () => {
+        setIsDeleting(true);
+        setError('');
+        try {
+            await onConfirm();
+            onClose();
+        } catch (e: any) {
+            setError(e.message || 'Falha ao excluir. Verifique suas permissões.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+            <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="p-6 text-center">
+                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-800/50 mb-4">
+                        <TrashIcon />
+                    </div>
+                    <h4 className="text-lg font-bold text-white">Excluir Jogo?</h4>
+                    <p className="text-sm text-poker-gray my-2">
+                        Você está prestes a excluir permanentemente o jogo:
+                        <br />
+                        <strong className="text-white">{sessionName}</strong>
+                    </p>
+                    <p className="text-xs text-red-400 font-semibold">Esta ação não pode ser desfeita.</p>
+                     {error && (
+                        <p className="text-sm text-red-500 text-center mt-3 bg-red-500/10 p-2 rounded-md">{error}</p>
+                    )}
+                </div>
+                <div className="p-4 border-t border-poker-dark flex justify-center gap-4">
+                    <button onClick={onClose} disabled={isDeleting} className="w-full px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm font-semibold">
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleConfirm}
+                        disabled={isDeleting || !canClick}
+                        className="w-full h-10 flex justify-center items-center text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm disabled:bg-poker-gray/50 disabled:cursor-not-allowed"
+                        title={!canClick ? "Aguarde um segundo..." : "Confirmar exclusão"}
+                    >
+                        {isDeleting ? <SpinnerIcon /> : 'Excluir Jogo'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   isUserAdmin,
   session,
@@ -31,10 +94,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   const [editedSession, setEditedSession] = useState<Session>(session);
   const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
-  const [deleteError, setDeleteError] = useState('');
   
   useEffect(() => {
     setEditedSession(session);
@@ -76,29 +136,10 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     setIsEditing(false);
   };
 
-  const handleDeleteClick = () => {
-    setDeleteError('');
-    setDeleteConfirmationInput('');
-    setIsDeleteConfirmOpen(true);
-  };
-
   const handleConfirmDelete = async () => {
-    if (deleteConfirmationInput !== session.name) return;
-    
-    setIsDeleting(true);
-    setDeleteError('');
-    try {
-        await onDelete(session.id);
-        // Success: close all modals. The `onSnapshot` listener in App.tsx will handle the UI update.
-        setDeleteConfirmationInput('');
-        setIsDeleteConfirmOpen(false);
-        onClose();
-    } catch (error) {
-        console.error("Deletion failed:", error);
-        setDeleteError('Falha ao excluir. Verifique suas permissões no painel do Firebase.');
-    } finally {
-        setIsDeleting(false);
-    }
+    await onDelete(session.id);
+    setIsDeleteConfirmOpen(false);
+    onClose();
   };
   
   const handleGameNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,8 +172,8 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 </button>
                 {isUserAdmin && (
                     <button 
-                        onClick={handleDeleteClick}
-                        disabled={isDeleting || isEditing}
+                        onClick={() => setIsDeleteConfirmOpen(true)}
+                        disabled={isEditing}
                         className="flex items-center justify-center w-28 h-[38px] text-sm font-semibold rounded-md bg-red-800/50 text-red-400 hover:bg-red-800 hover:text-white shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Excluir Jogo do Histórico"
                     >
@@ -230,36 +271,11 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
         <SessionGraphModal session={editedSession} onClose={() => setIsGraphModalOpen(false)} />
     )}
     {isDeleteConfirmOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-            <div className="bg-poker-light rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-                <div className="p-4">
-                    <h4 className="text-lg font-bold text-white">Confirmar Exclusão</h4>
-                    <p className="text-sm text-poker-gray my-2">Esta ação não pode ser desfeita. Para confirmar, digite o nome do jogo: <strong className="text-white">{session.name}</strong></p>
-                    <input
-                        type="text"
-                        value={deleteConfirmationInput}
-                        onChange={e => setDeleteConfirmationInput(e.target.value)}
-                        className="bg-poker-dark border border-poker-gray/20 text-white text-sm rounded-lg w-full p-2.5"
-                    />
-                    {deleteError && (
-                        <p className="text-sm text-red-500 text-center mt-3">{deleteError}</p>
-                    )}
-                    {isDeleting && !deleteError && (
-                        <p className="text-sm text-yellow-400 text-center mt-3 animate-pulse">Excluindo jogo, por favor aguarde...</p>
-                    )}
-                </div>
-                <div className="p-4 border-t border-poker-dark flex justify-end gap-2">
-                    <button onClick={() => setIsDeleteConfirmOpen(false)} disabled={isDeleting} className="px-4 py-2 text-poker-gray bg-transparent hover:bg-poker-dark rounded-lg text-sm">Cancelar</button>
-                    <button
-                        onClick={handleConfirmDelete}
-                        disabled={deleteConfirmationInput !== session.name || isDeleting}
-                        className="w-32 h-10 flex justify-center items-center text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm disabled:bg-poker-gray/50"
-                    >
-                        {isDeleting ? <SpinnerIcon /> : 'Excluir'}
-                    </button>
-                </div>
-            </div>
-        </div>
+       <DeleteConfirmationModal
+            sessionName={session.name}
+            onClose={() => setIsDeleteConfirmOpen(false)}
+            onConfirm={handleConfirmDelete}
+       />
     )}
     </>
   );
