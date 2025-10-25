@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { 
@@ -516,18 +515,15 @@ const App: React.FC = () => {
         }
 
         try {
-            // Await the deletion from Firestore. This ensures the operation completes on the server.
             await deleteDoc(doc(db, 'sessions', sessionId));
-
-            // Manually update local state for instant UI feedback, preventing the "reappearing item" bug.
-            setSessionHistory(prevHistory => prevHistory.filter(session => session.id !== sessionId));
-
+            // Let the onSnapshot listener handle the UI update automatically.
+            // This is the most robust way to ensure UI consistency with the backend.
             showToast('Jogo excluído do histórico.', 'success');
         } catch (error) {
             console.error("Error deleting session:", error);
             const msg = 'Erro ao excluir o jogo. Verifique as permissões no Firebase.';
             showToast(msg, 'error');
-            // Re-throw the error to be caught by the calling component (the modal), 
+            // Re-throw the error to be caught by the calling component (the modal),
             // so it can display a specific error message to the user.
             throw error;
         }
