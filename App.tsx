@@ -54,7 +54,7 @@ const App: React.FC = () => {
     const userRole: UserRole = user?.role || 'visitor';
     const isUserAdmin = userRole === 'admin' || userRole === 'owner';
     const isUserOwner = userRole === 'owner';
-    const isUserAuthenticated = !!user && user.role !== 'visitor';
+    const isUserAuthenticated = !!user && user.role !== 'visitor' && user.role !== 'pending';
 
     // Toast helper
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -106,16 +106,35 @@ const App: React.FC = () => {
                         const userData = userDoc.data() as Omit<AppUser, 'uid'>;
                         setUser({ uid: firebaseUser.uid, ...userData });
                     } else {
-                        // This case is for first-time sign-in with a provider like Google
-                        // where a user document doesn't exist yet.
-                        const newUser: AppUser = {
-                            uid: firebaseUser.uid,
-                            name: firebaseUser.displayName || "Novo Usuário",
-                            email: firebaseUser.email || "",
-                            role: 'pending', // New users start as pending
-                        };
-                        await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-                        setUser(newUser);
+                        // User exists in Auth, but not in Firestore. This can happen on first-time social login,
+                        // or if the user record was deleted from Firestore but not from Auth.
+                        const isSocialLogin = firebaseUser.providerData.some(
+                            (provider) => provider.providerId !== 'password'
+                        );
+
+                        // Also check if this is a genuinely new user account in Auth by checking creation time against last sign in
+                        const tolerance = 5 * 1000; // 5 seconds tolerance
+                        const creationTime = new Date(firebaseUser.metadata.creationTime || 0).getTime();
+                        const lastSignInTime = new Date(firebaseUser.metadata.lastSignInTime || 0).getTime();
+                        const isNewAuthUser = Math.abs(creationTime - lastSignInTime) < tolerance;
+
+                        if (isSocialLogin || isNewAuthUser) {
+                            // This is likely a first-time sign-in. Create a 'pending' user doc.
+                            const newUser: AppUser = {
+                                uid: firebaseUser.uid,
+                                name: firebaseUser.displayName || "Novo Usuário",
+                                email: firebaseUser.email || "",
+                                role: 'pending',
+                            };
+                            await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+                            setUser(newUser);
+                        } else {
+                            // This is an existing email/password user with a missing Firestore document.
+                            // This indicates a data inconsistency. Do not create a new user and overwrite their role.
+                            console.error(`Inconsistent state: User ${firebaseUser.uid} exists in Auth but is missing from Firestore.`);
+                            showToast('Ocorreu um erro com sua conta. Por favor, contate o suporte.', 'error');
+                            signOut(auth); // Log the user out to prevent them from using the app in a broken state.
+                        }
                     }
                 }
             } else {
@@ -125,7 +144,7 @@ const App: React.FC = () => {
             setIsVisitorLoggingIn(false); // Stop visitor loading spinner
         });
         return () => unsubscribeAuth();
-    }, []);
+    }, [showToast]);
 
     // Firestore Listeners
     useEffect(() => {
@@ -778,15 +797,23 @@ const App: React.FC = () => {
                             onShowToast={showToast}
                         />;
             case View.Settings:
-                 return isUserAdmin ? <Settings 
-                                isUserOwner={isUserOwner}
-                                appUsers={appUsers}
-                                onUpdateUserRole={handleUpdateUserRole}
-                                onSaveDefaults={handleSaveDefaults}
-                                gameDefaults={gameDefaults}
-                                onAddUser={handleAddUser}
-                                onDeleteUser={handleDeleteUser}
-                            /> : null;
+                if (!isUserAdmin) {
+                    return (
+                        <div className="text-center p-10 bg-poker-light rounded-lg shadow-xl">
+                            <h2 className="text-2xl font-bold text-white mb-4">Acesso Negado</h2>
+                            <p className="text-poker-gray">Você não tem permissão para acessar esta página.</p>
+                        </div>
+                    );
+                }
+                return <Settings 
+                    isUserOwner={isUserOwner}
+                    appUsers={appUsers}
+                    onUpdateUserRole={handleUpdateUserRole}
+                    onSaveDefaults={handleSaveDefaults}
+                    gameDefaults={gameDefaults}
+                    onAddUser={handleAddUser}
+                    onDeleteUser={handleDeleteUser}
+                />;
             case View.Expenses:
                 return <Dinner 
                             isUserAdmin={isUserAdmin}
