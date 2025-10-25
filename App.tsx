@@ -248,16 +248,21 @@ const App: React.FC = () => {
         // Notifications listener (for authenticated members only)
         let unsubscribeNotifications = () => {};
         if (isUserAuthenticated) {
-            const qNotifications = query(collection(db, 'notifications'), orderBy('timestamp', 'desc'));
+            // Removing orderBy from the query to prevent potential indexing issues that
+            // can sometimes manifest as permission errors. Sorting will be done on the client.
+            const qNotifications = query(collection(db, 'notifications'));
             unsubscribeNotifications = onSnapshot(qNotifications, snapshot => {
-                setNotifications(snapshot.docs.map(doc => {
+                const fetchedNotifications = snapshot.docs.map(doc => {
                     const data = doc.data();
                     return {
                         id: doc.id,
                         ...data,
                         timestamp: normalizeTimestamp(data.timestamp)
                     } as Notification;
-                }));
+                });
+                // Sort notifications on the client-side
+                fetchedNotifications.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+                setNotifications(fetchedNotifications);
             }, handleError('notificações'));
         } else {
             setNotifications([]); // Clear notifications for visitors
@@ -534,7 +539,6 @@ const App: React.FC = () => {
         }
         try {
             await deleteDoc(doc(db, 'sessions', sessionId));
-            // Success is confirmed by the item disappearing from the list via the real-time listener.
             return true;
         } catch (error: any) {
             console.error("Error deleting session:", error);
@@ -685,7 +689,6 @@ const App: React.FC = () => {
         }
         try {
             await deleteDoc(doc(db, 'dinner_sessions', dinnerSessionId));
-             // Success is confirmed by the item disappearing from the list via the real-time listener.
             return true;
         } catch (error: any) {
             console.error("Error deleting dinner session:", error);
