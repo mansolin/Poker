@@ -106,6 +106,18 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     setEditedSession(prev => ({ ...prev, players: updatedPlayers }));
   };
 
+  const handleRemovePlayerFromSession = (playerIdToRemove: string) => {
+    if (!isUserAdmin || !isEditing) return;
+
+    const playerToRemove = editedSession.players.find(p => p.id === playerIdToRemove);
+    if (!playerToRemove) return;
+
+    if (window.confirm(`Tem certeza que deseja remover ${playerToRemove.name} deste jogo? Esta alteração será salva ao confirmar a edição.`)) {
+        const updatedPlayers = editedSession.players.filter(p => p.id !== playerIdToRemove);
+        setEditedSession(prev => ({ ...prev, players: updatedPlayers }));
+    }
+  };
+
   const handleCancelEdit = () => {
     setEditedSession(session);
     setIsEditing(false);
@@ -187,6 +199,9 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                                 <span className="hidden sm:inline">Resultado (R$)</span>
                             </th>
                             <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-poker-gray uppercase">Pago</th>
+                             {isEditing && isUserAdmin && (
+                                <th className="px-2 py-2 text-right text-xs font-medium text-poker-gray uppercase">Ações</th>
+                            )}
                         </tr>
                     </thead>
                     <tbody className="bg-poker-light divide-y divide-poker-dark">
@@ -227,6 +242,17 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                                         className="w-5 h-5 text-green-500 bg-gray-700 border-gray-600 rounded focus:ring-2 focus:ring-green-500 disabled:opacity-50"
                                     />
                                 </td>
+                                {isEditing && isUserAdmin && (
+                                    <td className="px-2 py-3 whitespace-nowrap text-right">
+                                        <button
+                                            onClick={() => handleRemovePlayerFromSession(player.id)}
+                                            className="p-2 text-red-400 hover:text-red-200 hover:bg-red-500/10 rounded-full transition-colors"
+                                            title={`Remover ${player.name} do jogo`}
+                                        >
+                                            <TrashIcon />
+                                        </button>
+                                    </td>
+                                )}
                             </tr>);
                         })}
                     </tbody>
