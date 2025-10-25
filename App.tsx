@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db } from './firebase';
 import { 
@@ -458,7 +457,8 @@ const App: React.FC = () => {
     const handleUpdatePlayer = useCallback(async (player: Player) => {
         if (!isUserAdmin) return;
         try {
-            await updateDoc(doc(db, 'players', player.id), player);
+            const { id, ...playerData } = player;
+            await updateDoc(doc(db, 'players', id), playerData);
             showToast('Jogador atualizado!', 'success');
         } catch (error) {
             console.error("Error updating player:", error);
@@ -516,20 +516,13 @@ const App: React.FC = () => {
         }
 
         try {
-            // This is the "Realistic" approach: only update UI after server confirmation.
             await deleteDoc(doc(db, 'sessions', sessionId));
-            
-            // The onSnapshot listener will automatically update the UI.
-            // A manual update is an alternative for faster perceived feedback if needed.
-            // setSessionHistory(prev => prev.filter(s => s.id !== sessionId));
-
+             setSessionHistory(prev => prev.filter(s => s.id !== sessionId));
             showToast('Jogo excluído do histórico.', 'success');
         } catch (error) {
             console.error("Error deleting session:", error);
             const msg = 'Erro ao excluir o jogo. Verifique as permissões no Firebase.';
             showToast(msg, 'error');
-            // Re-throw the error to be caught by the calling component (the modal),
-            // so it can display a specific error message to the user.
             throw new Error(msg);
         }
     }, [isUserAdmin, showToast]);
@@ -689,12 +682,7 @@ const App: React.FC = () => {
     const handleAddUser = async (userData: Omit<AppUser, 'uid'>, password: string): Promise<boolean> => {
         if (!isUserOwner) return false;
         try {
-            // This is a simplified client-side user creation for demonstration.
-            // In a real-world app, this should be handled by a secure backend function
-            // to prevent abuse and to create the auth user properly.
-            const tempAuth = auth; // Use the main auth instance
-            // FIX: Use the 'password' parameter instead of 'userData.password' which does not exist.
-            const userCredential = await createUserWithEmailAndPassword(tempAuth, userData.email, password);
+            const userCredential = await createUserWithEmailAndPassword(auth, userData.email, password);
             await setDoc(doc(db, 'users', userCredential.user.uid), {
                 name: userData.name,
                 email: userData.email,
@@ -715,23 +703,22 @@ const App: React.FC = () => {
      const handleDeleteUser = useCallback(async (uid: string) => {
         if (!isUserOwner) {
             showToast('Apenas o dono pode excluir usuários.', 'error');
-            return;
+            return Promise.reject(new Error('Permission denied'));
         }
 
         const userToDelete = appUsers.find(u => u.uid === uid);
         if (userToDelete?.email === 'marcioansolin@gmail.com') {
             showToast('Não é possível excluir o usuário dono do aplicativo.', 'error');
-            return;
+            return Promise.reject(new Error('Cannot delete owner'));
         }
         
         try {
-            // This only deletes the user's data from Firestore, not their auth account.
-            // A Cloud Function would be needed to delete the Firebase Auth user.
             await deleteDoc(doc(db, 'users', uid));
             showToast("Registro de usuário excluído do app.", 'success');
         } catch (error) {
             console.error("Error deleting user from Firestore:", error);
             showToast("Erro ao excluir registro de usuário.", 'error');
+            throw error;
         }
     }, [isUserOwner, showToast, appUsers]);
 
@@ -763,7 +750,6 @@ const App: React.FC = () => {
                             isUserAdmin={isUserAdmin} 
                             players={players} 
                             onAddPlayer={handleAddPlayer} 
-                            // FIX: Corrected typo from onUpdatePlayer to handleUpdatePlayer
                             onUpdatePlayer={handleUpdatePlayer}
                             onDeletePlayer={handleDeletePlayer}
                             onStartGame={handleStartGame} 
@@ -807,8 +793,8 @@ const App: React.FC = () => {
                             isUserOwner={isUserOwner}
                             allPlayers={players}
                             liveDinner={liveDinner}
+                            dinnerHistory={dinnerHistory}
                             onStartDinner={handleStartDinner}
-                            // FIX: Corrected typo from onUpdateDinner to handleUpdateDinner
                             onUpdateDinner={handleUpdateDinner}
                             onFinalizeDinner={handleFinalizeDinner}
                             onCancelDinner={handleCancelDinner}
