@@ -14,24 +14,25 @@ interface SessionDetailModalProps {
   allPlayers: Player[];
   onClose: () => void;
   onSave: (session: Session) => void;
-  onDelete: (sessionId: string) => Promise<void>;
+  onDelete: (sessionId: string) => Promise<boolean>;
   onViewProfile: (playerId: string) => void;
 }
 
 const DeleteConfirmationModal: React.FC<{
     sessionName: string;
     onClose: () => void;
-    onConfirm: () => Promise<void>;
+    onConfirm: () => Promise<boolean>;
 }> = ({ sessionName, onClose, onConfirm }) => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleConfirm = async () => {
         setIsDeleting(true);
-        await onConfirm();
-        // The parent (App.tsx) now handles error toasts.
-        // We always close the confirmation modal after the attempt.
+        const success = await onConfirm();
         setIsDeleting(false);
-        onClose();
+        if (success) {
+            onClose(); // Only close the confirmation modal on success
+        }
+        // If it fails, the modal stays open, and the toast from App.tsx is visible.
     };
 
 
@@ -128,6 +129,11 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   };
   
   const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => event.target.select();
+  
+  const handleConfirmDelete = async () => {
+    // This function now returns a boolean to indicate success
+    return await onDelete(session.id);
+  };
   
   return (
     <>
@@ -254,8 +260,11 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     {isDeleteConfirmOpen && (
        <DeleteConfirmationModal
             sessionName={session.name}
-            onClose={() => setIsDeleteConfirmOpen(false)}
-            onConfirm={() => onDelete(session.id)}
+            onClose={() => {
+                setIsDeleteConfirmOpen(false);
+                onClose(); // Also close the main detail modal if deletion is successful
+            }}
+            onConfirm={handleConfirmDelete}
        />
     )}
     </>

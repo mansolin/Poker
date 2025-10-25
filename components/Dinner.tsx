@@ -9,17 +9,17 @@ import SpinnerIcon from './icons/SpinnerIcon';
 const DeleteDinnerConfirmationModal: React.FC<{
     dinner: DinnerSession;
     onClose: () => void;
-    onConfirm: (dinnerId: string) => Promise<void>;
+    onConfirm: (dinnerId: string) => Promise<boolean>;
 }> = ({ dinner, onClose, onConfirm }) => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleConfirm = async () => {
         setIsDeleting(true);
-        await onConfirm(dinner.id);
-        // The parent (App.tsx) now handles error toasts.
-        // We always close the confirmation modal after the attempt.
+        const success = await onConfirm(dinner.id);
         setIsDeleting(false);
-        onClose();
+        if (success) {
+            onClose(); // Only close the modal on successful deletion
+        }
     };
 
     return (
@@ -60,7 +60,7 @@ interface DinnerProps {
     onUpdateDinner: (updatedDinnerData: Partial<DinnerSession>) => void;
     onFinalizeDinner: () => void;
     onCancelDinner: () => void;
-    onDeleteDinnerSession: (dinnerSessionId: string) => Promise<void>;
+    onDeleteDinnerSession: (dinnerSessionId: string) => Promise<boolean>;
 }
 
 const Dinner: React.FC<DinnerProps> = ({ isUserAdmin, allPlayers, liveDinner, dinnerHistory, onStartDinner, onUpdateDinner, onFinalizeDinner, onCancelDinner, onDeleteDinnerSession }) => {

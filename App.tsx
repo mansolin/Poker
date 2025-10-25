@@ -527,20 +527,22 @@ const App: React.FC = () => {
         }
     }, [isUserAdmin, showToast]);
 
-    const handleDeleteHistoricGame = useCallback(async (sessionId: string): Promise<void> => {
+    const handleDeleteHistoricGame = useCallback(async (sessionId: string): Promise<boolean> => {
         if (!isUserAdmin) {
             showToast('Apenas administradores podem excluir jogos.', 'error');
-            return;
+            return false;
         }
         try {
             await deleteDoc(doc(db, 'sessions', sessionId));
-            // No success toast. The UI updating via the listener is the confirmation.
+            // Success is confirmed by the item disappearing from the list via the real-time listener.
+            return true;
         } catch (error: any) {
             console.error("Error deleting session:", error);
             const msg = error.code === 'permission-denied' 
                 ? 'Permissão negada para excluir.' 
                 : 'Erro ao excluir o jogo.';
             showToast(msg, 'error');
+            return false;
         }
     }, [isUserAdmin, showToast]);
 
@@ -676,20 +678,22 @@ const App: React.FC = () => {
         }
     }, [isUserAdmin, showToast]);
     
-    const handleDeleteDinnerSession = useCallback(async (dinnerSessionId: string): Promise<void> => {
+    const handleDeleteDinnerSession = useCallback(async (dinnerSessionId: string): Promise<boolean> => {
         if (!isUserAdmin) {
             showToast('Apenas administradores podem excluir jantares.', 'error');
-            return;
+            return false;
         }
         try {
             await deleteDoc(doc(db, 'dinner_sessions', dinnerSessionId));
-            // No success toast. The UI updating via the listener is the confirmation.
+             // Success is confirmed by the item disappearing from the list via the real-time listener.
+            return true;
         } catch (error: any) {
             console.error("Error deleting dinner session:", error);
             const msg = error.code === 'permission-denied' 
                 ? 'Permissão negada para excluir.' 
                 : 'Erro ao excluir o jantar.';
             showToast(msg, 'error');
+            return false;
         }
     }, [isUserAdmin, showToast]);
 

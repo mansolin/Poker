@@ -9,7 +9,7 @@ interface SessionHistoryProps {
   sessionHistory: Session[];
   players: Player[];
   onEditHistoricGame: (session: Session) => void;
-  onDeleteHistoricGame: (sessionId: string) => Promise<void>;
+  onDeleteHistoricGame: (sessionId: string) => Promise<boolean>;
   onViewProfile: (playerId: string) => void;
   initialSessionId: string | null;
   onClearInitialSession: () => void;
