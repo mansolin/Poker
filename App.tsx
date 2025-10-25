@@ -517,14 +517,18 @@ const App: React.FC = () => {
         }
 
         try {
-            // Envia a ordem de exclusão para o Firestore.
-            // O listener onSnapshot se encarregará de atualizar a UI em tempo real.
+            // 1. Envia a ordem de exclusão para o Firestore.
             await deleteDoc(doc(db, 'sessions', sessionId));
             
-            // A UI será atualizada automaticamente pelo listener.
+            // 2. CORREÇÃO: Atualiza o estado local imediatamente após o sucesso da exclusão.
+            // Isso evita a "condição de corrida" com o listener do Firestore e garante
+            // que a UI reflita a mudança instantaneamente.
+            setSessionHistory(prevHistory => prevHistory.filter(s => s.id !== sessionId));
+
+            // 3. Exibe a mensagem de sucesso.
             showToast('Jogo excluído do histórico.', 'success');
         } catch (error) {
-            // Se a exclusão falhar, exibe um erro e relança para o modal.
+            // Se a exclusão falhar, a UI não é alterada e o erro é exibido.
             console.error("Error deleting session:", error);
             const msg = 'Erro ao excluir o jogo. Verifique as permissões.';
             showToast(msg, 'error');
