@@ -52,12 +52,9 @@ const App: React.FC = () => {
     
     const isLoading = user === undefined;
     const userRole: UserRole = user?.role || 'visitor';
-    
-    // EXTREME MEASURE: Grant full permissions to any logged-in user, including visitors.
-    const isUserAdmin = !!user;
-    const isUserOwner = !!user;
-    const isUserAuthenticated = !!user;
-
+    const isUserAdmin = userRole === 'admin' || userRole === 'owner';
+    const isUserOwner = userRole === 'owner';
+    const isUserAuthenticated = !!user && user.role !== 'visitor' && user.role !== 'pending';
 
     // Toast helper
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
